@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# collectstatic output. build.sh regenerates it on every deploy.
+staticfiles/
+
+# Secrets / local environment
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# NOTE: locale/**/*.mo is intentionally tracked. build.sh does not run
+# compilemessages (Render's image has no gettext), so the compiled catalogs
+# must be committed for Pidgin to work in production.

@@ -1,0 +1,33 @@
+# Render Blueprint. Point Render at this repo (New > Blueprint) and it creates
+# the service below. Everything here can also be set by hand in the dashboard.
+services:
+  - type: web
+    name: soothify-africa
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: "bash ./build.sh"   # bash ... so it works even if the exec bit is lost in git
+    startCommand: "gunicorn soothifyAfrica.wsgi:application"
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      - key: SECRET_KEY
+        generateValue: true      # Render generates a strong key on first deploy
+      - key: WEB_CONCURRENCY
+        value: "2"               # gunicorn workers; the free plan has little RAM
+
+      # Uncomment together with the databases block below to switch to Postgres.
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: soothify-db
+      #     property: connectionString
+
+# The app runs on SQLite until a database is attached. Render's disk is
+# ephemeral, so do that before storing anything that must survive a deploy.
+#
+# databases:
+#   - name: soothify-db
+#     plan: free            # free instances expire after 30 days
+#     databaseName: soothify
+#     user: soothify

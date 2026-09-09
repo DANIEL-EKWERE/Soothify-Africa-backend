@@ -1,0 +1,180 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Soothify Africa\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pcm\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Soothify Africa — Find Your Inner Calm"
+msgstr ""
+
+msgid "Soothify Africa is building a simpler way to find balance, right here at home. Therapy, guided meditation, Pilates and wellness content in Pidgin and English. Join the waitlist for early access."
+msgstr ""
+
+msgid "Primary"
+msgstr ""
+
+msgid "Soothify Africa — home"
+msgstr ""
+
+msgid "Change Language"
+msgstr ""
+
+msgid "Login"
+msgstr ""
+
+msgid "Join Waitlist"
+msgstr ""
+
+msgid "Welcome to Soothify! Your space to breathe, reset, and take care of yourself is on the way."
+msgstr ""
+
+msgid "Join waitlist"
+msgstr ""
+
+msgid "Life moves fast"
+msgstr ""
+
+msgid "We are building a simpler way to find balance, right here at home. Join the waitlist to get early access when we launch"
+msgstr ""
+
+msgid "Person listening to calming music"
+msgstr ""
+
+msgid "Relaxation Music"
+msgstr ""
+
+msgid "Soft, grounding sounds to help quiet a loud day"
+msgstr ""
+
+msgid "Guided Pilates and stretching session"
+msgstr ""
+
+msgid "Virtual Pilates & Stretch"
+msgstr ""
+
+msgid "Low-impact movement and guided Pilates sessions to build core strength and shake off physical tension"
+msgstr ""
+
+msgid "Woman in an online therapy session"
+msgstr ""
+
+msgid "One-on-One Therapy Sessions"
+msgstr ""
+
+msgid "Safe, confidential spaces to talk through things with licensed professionals who actually get it"
+msgstr ""
+
+msgid "Person meditating"
+msgstr ""
+
+msgid "Guided Meditation"
+msgstr ""
+
+msgid "Simple, bite-sized practices to help you catch your breath"
+msgstr ""
+
+msgid "Reading a wellness article"
+msgstr ""
+
+msgid "Wellness Articles"
+msgstr ""
+
+msgid "Real, straightforward reads on rest, mental health, and everyday ease."
+msgstr ""
+
+msgid "Why Join early?"
+msgstr ""
+
+msgid "Pidgin & English"
+msgstr ""
+
+msgid "We want everyone to feel included. Switch seamlessly between Pidgin and English so you can connect in the language that feels most natural to you."
+msgstr ""
+
+msgid "Made for Our Reality"
+msgstr ""
+
+msgid "We understand the unique rhythm of life here. Our content and support fit your actual culture and lifestyle."
+msgstr ""
+
+msgid "Accessible & Affordable"
+msgstr ""
+
+msgid "Well-being shouldn’t feel out of reach. We’re keeping things realistic and inclusive for everyone."
+msgstr ""
+
+msgid "Find your people"
+msgstr ""
+
+msgid "You won’t be doing this alone. Once we open our doors, you’ll join a community of everyday people looking for a bit more peace and balance."
+msgstr ""
+
+msgid "Join the Waitlist"
+msgstr ""
+
+msgid "Frequently Asked Questions"
+msgstr ""
+
+msgid "Is Soothify live right now?"
+msgstr ""
+
+msgid "Not yet! We are currently building and polishing the MVP to make sure it feels just right. Joining the waitlist means you'll be the absolute first to know the moment we open access."
+msgstr ""
+
+msgid "What do I get by joining the waitlist?"
+msgstr ""
+
+msgid "Early access ahead of the public launch, plus first word on new features and launch offers as they land."
+msgstr ""
+
+msgid "Will therapy and content really be available in Pidgin?"
+msgstr ""
+
+msgid "Yes. Pidgin and English are both first-class from day one, so you can switch to whichever language feels most natural to you."
+msgstr ""
+
+msgid "Are therapy sessions truly confidential?"
+msgstr ""
+
+msgid "Always. Sessions are private between you and your licensed professional, and your data stays protected."
+msgstr ""
+
+msgid "Follow Us"
+msgstr ""
+
+msgid "Soothify Africa on Facebook"
+msgstr ""
+
+msgid "Soothify Africa on Twitter"
+msgstr ""
+
+msgid "Soothify Africa on Instagram"
+msgstr ""
+
+msgid "Soothify Africa on LinkedIn"
+msgstr ""
+
+msgid "Take charge of your well-being. Don't let stress run the show"
+msgstr ""
+
+msgid "We're putting the final touches on everything. Drop your email to claim your spot on the waitlist"
+msgstr ""
+
+msgid "Legal"
+msgstr ""
+
+msgid "Privacy Policy"
+msgstr ""
+
+msgid "Terms of Use"
+msgstr ""
+
+msgid "Find Your<br>Inner Calm"
+msgstr ""
+
+msgid "© {{ year }} . Powered by soothifyafrica. All Rights Reserved."
+msgstr ""

@@ -1,0 +1,319 @@
+{% load i18n static %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% translate "Soothify Africa — Find Your Inner Calm" %}</title>
+  <meta name="description" content="{% translate "Soothify Africa is building a simpler way to find balance, right here at home. Therapy, guided meditation, Pilates and wellness content in Pidgin and English. Join the waitlist for early access." %}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,600;6..12,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <!-- Poster paints immediately; the clip is fetched by JS only when it is wanted
+       (motion allowed, wide enough viewport), so phones never pull 6MB of video. -->
+  <video class="hero__bg" data-hero-video
+         data-src="{% static 'video/hero.mp4' %}"
+         poster="{% static 'img/hero.jpg' %}"
+         muted loop playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
+
+  <nav class="nav" aria-label="{% translate "Primary" %}">
+    <div class="shell nav__inner">
+      <a class="brand" href="{% url 'home:landing' %}" aria-label="{% translate "Soothify Africa — home" %}">
+        <img class="brand__mark" src="{% static 'img/logo-mark.jpg' %}" alt="" width="51" height="51">
+        <img class="brand__word" src="{% static 'img/logo-wordmark.svg' %}" alt="Soothify" width="117" height="47">
+      </a>
+
+      <div class="nav__right">
+        <div class="lang" data-lang>
+          <button class="lang__toggle" type="button" aria-expanded="false" aria-controls="lang-menu" data-lang-toggle>
+            <span>{% translate "Change Language" %}</span>
+            <svg class="lang__chev" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          {% get_current_language as CURRENT %}
+          <form class="lang__menu" id="lang-menu" method="post" action="{% url 'set_language' %}" hidden data-lang-menu>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% get_available_languages as LANGS %}
+            {% for code, name in LANGS %}
+              <button class="lang__opt" type="submit" name="language" value="{{ code }}"
+                      {% if code == CURRENT %}aria-current="true"{% endif %}>{{ name }}</button>
+            {% endfor %}
+          </form>
+        </div>
+
+        <div class="nav__actions">
+          <a class="btn btn--light" href="#waitlist">{% translate "Join Waitlist" %}</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="shell hero__body">
+    <h1 class="hero__title" data-reveal="mask">{% blocktranslate %}Find Your<br>Inner Calm{% endblocktranslate %}</h1>
+    <div class="hero__aside" data-reveal="right">
+      <p>{% translate "Welcome to Soothify! Your space to breathe, reset, and take care of yourself is on the way." %}</p>
+      <a class="btn btn--primary" href="#waitlist">{% translate "Join waitlist" %}</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ WHAT WE'RE BUILDING ============ -->
+  <section class="section" aria-labelledby="build-title">
+    <div class="shell section__head" data-reveal="mask">
+      <h2 class="section__title" id="build-title" style="color: var(--c-ink-900)">{% translate "Life moves fast" %}</h2>
+      <p class="section__lede">{% translate "We are building a simpler way to find balance, right here at home. Join the waitlist to get early access when we launch" %}</p>
+    </div>
+
+    <!-- The wheel: cards sit every 12° around a large circle whose centre is far
+         below the viewport, so only the top arc shows. The hub spins anticlockwise,
+         carrying each card up the arc, through the top, and down the far side. -->
+    <div class="wheel" data-reveal="zoom">
+      <div class="wheel__hub">
+        {% for c in wheel_cards %}
+        <article class="wheel__card{% if c.slug == 'therapy' %} wheel__card--therapy{% endif %}"
+                 style="--a: {{ c.angle }}deg"{% if c.decorative %} aria-hidden="true"{% endif %}>
+          <div class="tile"><img src="{% static c.img %}" alt="{{ c.alt }}" loading="lazy"></div>
+          <div class="plate">
+            <h3>{{ c.title }}</h3>
+            <p>{{ c.body }}</p>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHY JOIN EARLY ============ -->
+  <section class="why" aria-labelledby="why-title">
+    <div class="shell">
+      <div class="section__head" data-reveal="mask">
+        <h2 class="section__title" id="why-title">{% translate "Why Join early?" %}</h2>
+      </div>
+      <div class="why__grid">
+        <div class="why__item" data-reveal="up">
+          <h3>{% translate "Pidgin & English" %}</h3>
+          <p>{% translate "We want everyone to feel included. Switch seamlessly between Pidgin and English so you can connect in the language that feels most natural to you." %}</p>
+        </div>
+        <div class="why__item" data-reveal="up">
+          <h3>{% translate "Made for Our Reality" %}</h3>
+          <p>{% translate "We understand the unique rhythm of life here. Our content and support fit your actual culture and lifestyle." %}</p>
+        </div>
+        <div class="why__item" data-reveal="up">
+          <h3>{% translate "Accessible & Affordable" %}</h3>
+          <p>{% translate "Well-being shouldn’t feel out of reach. We’re keeping things realistic and inclusive for everyone." %}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMMUNITY CTA ============ -->
+  <section class="shell" aria-labelledby="community-title">
+    <div class="cta">
+      <img class="cta__bg" src="{% static 'img/cta-community.jpg' %}" alt="" width="2400" height="1600" loading="lazy">
+      <div class="cta__body" data-reveal="left">
+        <h2 class="cta__title" id="community-title">{% translate "Find your people" %}</h2>
+        <p>{% translate "You won’t be doing this alone. Once we open our doors, you’ll join a community of everyday people looking for a bit more peace and balance." %}</p>
+        <a class="btn btn--primary" href="#waitlist">{% translate "Join the Waitlist" %}</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="faq" aria-labelledby="faq-title">
+    <div class="shell">
+      <div class="section__head" data-reveal="mask">
+        <h2 class="section__title" id="faq-title">{% translate "Frequently Asked Questions" %}</h2>
+      </div>
+      <div class="faq__list">
+        <details class="faq__item" data-reveal="up" open>
+          <summary class="faq__q">{% translate "Is Soothify live right now?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <p class="faq__a">{% translate "Not yet! We are currently building and polishing the MVP to make sure it feels just right. Joining the waitlist means you'll be the absolute first to know the moment we open access." %}</p>
+        </details>
+        <details class="faq__item" data-reveal="up">
+          <summary class="faq__q">{% translate "What do I get by joining the waitlist?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <p class="faq__a">{% translate "Early access ahead of the public launch, plus first word on new features and launch offers as they land." %}</p>
+        </details>
+        <details class="faq__item" data-reveal="up">
+          <summary class="faq__q">{% translate "Will therapy and content really be available in Pidgin?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <p class="faq__a">{% translate "Yes. Pidgin and English are both first-class from day one, so you can switch to whichever language feels most natural to you." %}</p>
+        </details>
+        <details class="faq__item" data-reveal="up">
+          <summary class="faq__q">{% translate "Are therapy sessions truly confidential?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <p class="faq__a">{% translate "Always. Sessions are private between you and your licensed professional, and your data stays protected." %}</p>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer" id="waitlist">
+  <img class="footer__bg" src="{% static 'img/footer.jpg' %}" alt="" width="1333" height="2000" loading="lazy">
+
+  <div class="shell footer__main">
+    <div class="social" data-reveal="left">
+      <span class="social__label">{% translate "Follow Us" %}</span>
+      <div class="social__icons">
+        <a href="#" aria-label="{% translate "Soothify Africa on Facebook" %}"><img src="{% static 'img/icon-facebook.svg' %}" alt="" width="24" height="24"></a>
+        <a href="#" aria-label="{% translate "Soothify Africa on Twitter" %}"><img src="{% static 'img/icon-twitter.svg' %}" alt="" width="24" height="24"></a>
+        <a href="#" aria-label="{% translate "Soothify Africa on Instagram" %}"><img src="{% static 'img/icon-instagram.svg' %}" alt="" width="24" height="24"></a>
+        <a href="#" aria-label="{% translate "Soothify Africa on LinkedIn" %}"><img src="{% static 'img/icon-linkedin.svg' %}" alt="" width="24" height="24"></a>
+      </div>
+    </div>
+
+    <div class="footer__cta" data-reveal="right">
+      <h2 class="footer__title">{% translate "Take charge of your well-being. Don't let stress run the show" %}</h2>
+      <p>{% translate "We're putting the final touches on everything. Drop your email to claim your spot on the waitlist" %}</p>
+      <a class="btn btn--primary" href="#">{% translate "Join waitlist" %}</a>
+    </div>
+  </div>
+
+  <div class="shell footer__bar">
+    <div class="footer__bar-inner" data-reveal="up">
+      <nav class="footer__legal" aria-label="{% translate "Legal" %}">
+        <a href="#">{% translate "Privacy Policy" %}</a>
+        <a href="#">{% translate "Terms of Use" %}</a>
+      </nav>
+      <p class="footer__copy">{% now "Y" as year %}{% blocktranslate %}© {{ year }} . Powered by soothifyafrica. All Rights Reserved.{% endblocktranslate %}</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Hero video. Plays everywhere including phones; at ~1.8MB the clip is small
+  // enough that gating it on screen width is not worth the lost impact. The
+  // poster still stands in whenever playback is refused or unwanted.
+  (function () {
+    var v = document.querySelector('[data-hero-video]');
+    if (!v) return;
+
+    // Autoplay is only permitted for genuinely muted video. iOS checks the
+    // property, not just the attribute, when src is assigned late like this.
+    v.muted = true;
+    v.defaultMuted = true;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    v.src = v.dataset.src;
+    v.load();
+
+    var p = v.play();
+    if (p && p.catch) {
+      p.catch(function () { /* autoplay refused by the browser; poster stays */ });
+    }
+  })();
+  
+</script>
+
+<script>
+  // Mark the document as JS-capable *before* first paint so [data-reveal] elements
+  // start hidden. Without JS the class is never added and everything stays visible.
+  document.documentElement.classList.add('js');
+</script>
+
+<script>
+  // Reveal on scroll. Anything already on screen is revealed synchronously, so the
+  // first paint is never blank; the rest are watched. An IntersectionObserver does
+  // the watching when it is behaving, with a rAF-throttled scroll pass as backup --
+  // content must never be able to stay hidden just because a callback didn't arrive.
+  (function () {
+    var targets = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
+    if (!targets.length) return;
+
+    function show(el) { el.classList.add('is-visible'); }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      targets.forEach(show);
+      return;
+    }
+
+    // stagger siblings so grids cascade instead of snapping in together
+    targets.forEach(function (el) {
+      var kin = el.parentElement ? Array.prototype.filter.call(
+        el.parentElement.children, function (c) { return c.hasAttribute('data-reveal'); }) : [];
+      var i = kin.indexOf(el);
+      if (i > 0) el.style.setProperty('--reveal-delay', Math.min(i, 6) * 130 + 'ms');
+    });
+
+    var pending = targets.slice();
+
+    function onScreen(el) {
+      var r = el.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      return r.top < vh * 0.94 && r.bottom > 0;
+    }
+
+    function sweep() {
+      for (var i = pending.length - 1; i >= 0; i--) {
+        if (onScreen(pending[i])) { show(pending[i]); pending.splice(i, 1); }
+      }
+      if (!pending.length) {
+        window.removeEventListener('scroll', queue);
+        window.removeEventListener('resize', queue);
+      }
+    }
+
+    var queued = false;
+    function queue() {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () { queued = false; sweep(); });
+    }
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var at = pending.indexOf(entry.target);
+          if (at > -1) { show(entry.target); pending.splice(at, 1); }
+          io.unobserve(entry.target);
+        });
+      }, { threshold: 0.08, rootMargin: '0px 0px -4% 0px' });
+      targets.forEach(function (el) { io.observe(el); });
+    }
+
+    window.addEventListener('scroll', queue, { passive: true });
+    window.addEventListener('resize', queue);
+    sweep();                       // whatever is already in view, right now
+    window.addEventListener('load', queue);
+  })();
+</script>
+
+<script>
+  // Language menu — click to toggle, close on outside click or Escape.
+  (function () {
+    var root = document.querySelector('[data-lang]');
+    if (!root) return;
+    var toggle = root.querySelector('[data-lang-toggle]');
+    var menu = root.querySelector('[data-lang-menu]');
+
+    function setOpen(open) {
+      root.dataset.open = String(open);
+      menu.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    setOpen(false);
+
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setOpen(menu.hidden);
+    });
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setOpen(false);
+    });
+  })();
+</script>
+</body>
+</html>

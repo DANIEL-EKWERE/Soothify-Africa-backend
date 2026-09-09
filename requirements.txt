@@ -1,0 +1,13 @@
+# Runtime — pinned to what is installed locally so Render builds reproducibly.
+Django==6.1.1
+asgiref==3.12.1
+sqlparse==0.6.0
+
+# Production stack
+gunicorn==26.2.0         # WSGI server Render runs
+whitenoise==6.12.0       # serves collected static files from the app itself
+dj-database-url==3.1.2   # turns Render's DATABASE_URL into Django's DATABASES
+
+# PostgreSQL driver. Unused while DATABASE_URL is unset (the app falls back to
+# SQLite), but present so attaching a Render database needs no code change.
+psycopg[binary]>=3.2
