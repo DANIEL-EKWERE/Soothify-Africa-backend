@@ -29,7 +29,15 @@
         <img class="brand__word" src="{% static 'img/logo-wordmark.svg' %}" alt="Soothify" width="117" height="47">
       </a>
 
-      <div class="nav__right">
+      <!-- Phones collapse the language switcher and CTA behind this (Figma "phone/ header") -->
+      <button class="nav__burger" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="{% translate "Menu" %}" data-nav-toggle>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path class="nav__burger-open"  d="M3 6h18M3 12h18M3 18h18"/>
+          <path class="nav__burger-close" d="M5 5l14 14M19 5L5 19"/>
+        </svg>
+      </button>
+
+      <div class="nav__right" id="nav-menu" data-nav-menu>
         <div class="lang" data-lang>
           <button class="lang__toggle" type="button" aria-expanded="false" aria-controls="lang-menu" data-lang-toggle>
             <span>{% translate "Change Language" %}</span>
@@ -75,12 +83,13 @@
 
     <!-- The wheel: cards sit every 12° around a large circle whose centre is far
          below the viewport, so only the top arc shows. The hub spins anticlockwise,
-         carrying each card up the arc, through the top, and down the far side. -->
-    <div class="wheel" data-reveal="zoom">
+         carrying each card up the arc, through the top, and down the far side.
+         On first scroll-in the cards fan out from a single point at the top. -->
+    <div class="wheel" data-reveal="spread">
       <div class="wheel__hub">
         {% for c in wheel_cards %}
         <article class="wheel__card{% if c.slug == 'therapy' %} wheel__card--therapy{% endif %}"
-                 style="--a: {{ c.angle }}deg"{% if c.decorative %} aria-hidden="true"{% endif %}>
+                 style="--a: {{ c.angle }}deg; --spread-delay: {{ c.delay }}ms"{% if c.decorative %} aria-hidden="true"{% endif %}>
           <div class="tile"><img src="{% static c.img %}" alt="{{ c.alt }}" loading="lazy"></div>
           <div class="plate">
             <h3>{{ c.title }}</h3>
@@ -285,6 +294,34 @@
     window.addEventListener('resize', queue);
     sweep();                       // whatever is already in view, right now
     window.addEventListener('load', queue);
+  })();
+</script>
+
+<script>
+  // Phone menu — the hamburger shows/hides .nav__right; the CSS only honours
+  // data-open below the phone breakpoint, so this is inert on desktop.
+  (function () {
+    var nav = document.querySelector('.nav');
+    var toggle = document.querySelector('[data-nav-toggle]');
+    var menu = document.querySelector('[data-nav-menu]');
+    if (!nav || !toggle || !menu) return;
+
+    function setOpen(open) {
+      nav.dataset.open = String(open);
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    setOpen(false);
+
+    toggle.addEventListener('click', function () {
+      setOpen(nav.dataset.open !== 'true');
+    });
+    // tapping the CTA scrolls away; close so the menu is not still hanging open
+    menu.addEventListener('click', function (e) {
+      if (e.target.closest('a[href^="#"]')) setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setOpen(false);
+    });
   })();
 </script>
 

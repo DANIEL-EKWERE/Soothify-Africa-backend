@@ -52,7 +52,14 @@ def _wheel():
     cards = []
     for slot in range(SLOTS):
         card = dict(WHEEL_CARDS[slot % len(WHEEL_CARDS)])
-        card['angle'] = slot * SLOT_DEGREES
+        # Signed angle (-168..180) rather than 0..348: the spread-in entrance
+        # rotates each card from 0 to its angle, and must take the short way round.
+        angle = slot * SLOT_DEGREES
+        if angle > 180:
+            angle -= 360
+        card['angle'] = angle
+        # cards nearest the top of the arc fan out first
+        card['delay'] = abs(angle) // SLOT_DEGREES * 70
         # only the first turn is exposed to assistive tech; the rest are decorative
         card['decorative'] = slot >= len(WHEEL_CARDS)
         cards.append(card)

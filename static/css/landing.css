@@ -1,5 +1,6 @@
 /* Soothify Africa — landing page
-   Built from Figma "Web/ Landing page | English" (node 179:52505, 1440x3946). */
+   Built from Figma "Web/ Landing page | English" (node 193:9930, 1440x3858)
+   and "mobile/ landing page | English" (node 193:10160, 390x3679). */
 
 /* ---------- design tokens ---------- */
 :root {
@@ -14,6 +15,7 @@
   --c-surface-alt:#F9F9F9;   /* language menu row */
   --c-ring:       #F09D39;   /* logo mark ring */
   --c-lang-idle:  #1B1F26;
+  --c-hairline:   rgba(0,0,0,.10);   /* closed FAQ rows, language menu edge */
   --c-card-blue:  #619BCA;   /* centre collage card ground */
 
   --font-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -63,7 +65,7 @@ h1, h2, h3, p { margin: 0; }
 /* the large filled CTA — Figma: 20px/16px padding, 18px label */
 .btn--primary {
   background: var(--c-primary); color: var(--c-pure);
-  font-family: var(--font-body); font-weight: 600; font-size: 18px; line-height: 1;
+  font-family: var(--font-body); font-weight: 600; font-size: 18px; line-height: 12px;
   padding: 20px 16px;
 }
 .btn--primary:hover { background: #255FD6; box-shadow: 0 10px 24px rgba(47,111,237,.32); }
@@ -99,6 +101,11 @@ h1, h2, h3, p { margin: 0; }
 .brand__word { width: 117px; height: 47px; }
 
 .nav__right { display: flex; align-items: center; gap: 32px; }
+.nav__burger { display: none; width: 36px; height: 36px; padding: 4px; color: var(--c-white); flex: none; }
+.nav__burger svg { width: 100%; height: 100%; }
+.nav__burger-close { display: none; }
+.nav[data-open="true"] .nav__burger-open  { display: none; }
+.nav[data-open="true"] .nav__burger-close { display: block; }
 .nav__actions { display: flex; align-items: center; gap: 24px; }
 
 /* language switcher */
@@ -115,6 +122,7 @@ h1, h2, h3, p { margin: 0; }
   position: absolute; top: calc(100% + 17px); right: 0;
   width: 239px; padding: 25px 16px;
   background: var(--c-pure); border-radius: var(--radius);
+  border: 1px solid var(--c-hairline);
   box-shadow: 8px 8px 16px rgba(0,0,0,.10);
   display: flex; flex-direction: column; gap: 14px;
   z-index: 20;
@@ -123,11 +131,12 @@ h1, h2, h3, p { margin: 0; }
 .lang__menu[hidden] { display: none; }
 .lang__opt {
   width: 100%; height: 48px; border-radius: 4px;
-  background: var(--c-surface-alt); color: var(--c-lang-idle);
+  background: var(--c-surface-alt); color: var(--c-lang-idle); opacity: .72;
+  border: 1px solid transparent;
   font-size: 14px; line-height: 17px;
   display: flex; align-items: center; justify-content: center;
 }
-.lang__opt[aria-current="true"] { color: var(--c-primary); font-weight: 600; }
+.lang__opt[aria-current="true"] { color: var(--c-primary); opacity: 1; border-color: var(--c-primary); }
 .lang__opt:hover { background: #EFEFEF; }
 
 /* headline + intro card */
@@ -140,7 +149,7 @@ h1, h2, h3, p { margin: 0; }
 .hero__aside p { font-size: 16px; line-height: 23px; margin-bottom: 32px; }
 
 /* ---------- section shell ---------- */
-.section { padding-block: 96px 0; }   /* .why owns the gap below; 96+96 doubled it */
+.section { padding-block: 72px 0; }   /* .why owns the gap below */
 .section__head { text-align: center; max-width: 500px; margin-inline: auto; }
 .section__title { font-weight: 700; font-size: 36px; line-height: 43px; color: var(--c-ink); }
 .section__lede { font-size: 20px; line-height: 24px; margin-top: 24px; }
@@ -176,6 +185,21 @@ h1, h2, h3, p { margin: 0; }
   will-change: transform;
 }
 .wheel:hover .wheel__hub { animation-play-state: paused; }
+
+/* Entrance: every card starts collapsed to a point at the top of the circle
+   (angle 0, tiny) and fans out to its own slot as the band scrolls into view.
+   Cards nearer the top go first (--spread-delay grows with |angle|), so the fan
+   opens outward from the centre. The spin waits until the fan has opened. */
+.js .wheel[data-reveal="spread"]:not(.is-visible) .wheel__card { opacity: 0; }
+.js .wheel[data-reveal="spread"]:not(.is-visible) .wheel__hub  { animation-play-state: paused; }
+.js .wheel[data-reveal="spread"].is-visible .wheel__card {
+  animation: wheel-spread 1.4s cubic-bezier(.2,.8,.2,1) var(--spread-delay, 0ms) both;
+}
+@keyframes wheel-spread {
+  from { opacity: 0; transform: rotate(0deg) translateY(calc(-1 * var(--R))) scale(.08); }
+  25%  { opacity: 1; }
+  to   { opacity: 1; transform: rotate(var(--a)) translateY(calc(-1 * var(--R))) scale(var(--card-scale)); }
+}
 
 @keyframes wheel-spin {
   from { transform: rotate(0deg); }
@@ -256,11 +280,8 @@ h1, h2, h3, p { margin: 0; }
   filter: none;                    /* the wipe reads better without the blur */
 }
 
-/* the wheel settles in from slightly small - no blur, it is a big painted surface */
-.js [data-reveal="zoom"] {
-  transform: scale(.9) translate3d(0, 30px, 0);
-  filter: none;
-}
+/* the wheel band stays put; its cards carry the entrance (see .wheel__card) */
+.js [data-reveal="spread"] { opacity: 1; transform: none; filter: none; transition: none; }
 
 .js [data-reveal].is-visible {
   opacity: 1;
@@ -270,7 +291,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 /* ---------- why join ---------- */
-.why { padding-block: 96px; }
+.why { padding-block: 96px 64px; }
 .why__grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 64px;
   margin-top: 64px; max-width: 1092px; margin-inline: auto;
@@ -291,10 +312,13 @@ h1, h2, h3, p { margin: 0; }
 .cta__body .btn { margin-top: 32px; }
 
 /* ---------- FAQ ---------- */
-.faq { padding-block: 96px; }
+.faq { padding-block: 120px 128px; }
 .faq__list { max-width: 982px; margin: 64px auto 0; display: flex; flex-direction: column; gap: 16px; }
-.faq__item { border-radius: var(--radius); background: transparent; transition: background-color .2s ease; }
-.faq__item[open] { background: var(--c-surface); }
+.faq__item {
+  border-radius: var(--radius); background: transparent; border: 1px solid var(--c-hairline);
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.faq__item[open] { background: var(--c-surface); border-color: transparent; }
 .faq__q {
   list-style: none; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 32px;
@@ -311,7 +335,7 @@ h1, h2, h3, p { margin: 0; }
 .faq__icon::after  { width: 2px;  height: 12px; }                      /* the vertical, hidden when open */
 .faq__item[open] .faq__icon::after { opacity: 0; transform: translate(-50%,-50%) rotate(90deg); }
 .faq__icon { border: 1.5px solid var(--c-ink); border-radius: 50%; }
-.faq__a { padding: 0 36px 36px; font-size: 18px; line-height: 25px; color: var(--c-ink); }
+.faq__a { padding: 0 36px 36px; font-size: 18px; line-height: 25px; color: var(--c-ink); opacity: .72; }
 
 /* ---------- footer ---------- */
 .footer { position: relative; min-height: 721px; display: flex; flex-direction: column; color: var(--c-white); isolation: isolate; }
@@ -399,35 +423,85 @@ h1, h2, h3, p { margin: 0; }
   .footer__title { font-size: 38px; line-height: 46px; }
 }
 
+/* Phones — Figma "mobile/ landing page" (390 wide, 24px gutter). Everything
+   centres and stacks; the language switcher and CTA live behind a hamburger. */
 @media (max-width: 760px) {
-  :root { --gutter: 20px; }
-  .section { padding-block: 64px 0; }
-  .why, .faq { padding-block: 64px; }
-  .hero { min-height: 640px; }
-  .hero__title { font-size: 34px; line-height: 42px; }
-  .nav__right { gap: 16px; }
-  .nav__actions { gap: 12px; }
-  .lang__toggle span { display: none; }         /* keep the chevron, drop the label */
-  .section__title, .cta__title { font-size: 28px; line-height: 36px; }
-  .why__grid { grid-template-columns: 1fr; gap: 32px; }
-  .cta__body { padding: 32px 20px; }
-  .faq__q { font-size: 17px; line-height: 24px; padding: 16px 12px 16px 20px; gap: 16px; }
-  .faq__a { padding: 0 20px 24px; font-size: 16px; line-height: 23px; }
-  .footer__legal { gap: 28px; }
-  .footer__bar-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  :root { --gutter: 24px; }
 
+  /* header: small brand left, hamburger right */
+  .nav { padding-top: 8px; }
+  .nav__inner { min-height: 66px; gap: 16px; }
+  .brand { gap: 14px; }
+  .brand__mark { width: 31px; height: 31px; }
+  .brand__word { width: 71px; height: 28px; }
+  .nav__burger { display: block; }
+  .nav__right {
+    display: none;
+    position: absolute; left: var(--gutter); right: var(--gutter); top: calc(100% + 8px);
+    flex-direction: column; align-items: stretch; gap: 16px;
+    padding: 16px; border-radius: var(--radius);
+    background: var(--c-pure); border: 1px solid var(--c-hairline);
+    box-shadow: 8px 8px 16px rgba(0,0,0,.10);
+    z-index: 20;
+  }
+  .nav[data-open="true"] .nav__right { display: flex; }
+  .nav__inner { position: relative; }
+  /* inside the panel the language list is always open, so the toggle becomes a heading */
+  .lang__toggle { pointer-events: none; color: var(--c-ink); }
+  .lang__chev { display: none; }
+  .lang__menu, .lang__menu[hidden] {
+    display: flex; position: static; width: auto; padding: 0; margin-top: 12px;
+    border: 0; box-shadow: none;
+  }
+  .nav__actions .btn--light { width: 100%; background: var(--c-primary); color: var(--c-pure); }
+
+  /* hero: a centred column */
+  .hero { min-height: 846px; }
+  .hero::before { background: rgba(0,0,0,.56); }
+  .hero__body { flex-direction: column; align-items: center; text-align: center; padding-top: 240px; }
+  .hero__title { font-weight: 700; font-size: 32px; line-height: 38px; max-width: 330px; }
+  .hero__aside { width: min(330px, 100%); margin: 16px 0 0; }
+  .hero__aside p { font-weight: 500; font-size: 16px; line-height: 21px; margin-bottom: 32px; }
+  .btn--primary { font-size: 16px; padding: 18px 16px; }
+
+  /* sections */
+  .section { padding-block: 56px 0; }
+  .section__title, .cta__title { font-size: 24px; line-height: 29px; }
+  .section__lede { font-size: 16px; line-height: 21px; margin-top: 16px; opacity: .72; }
+  .wheel { --R: 1180px; --card-scale: .8; height: 400px; margin-top: 32px; }
+
+  .why { padding-block: 24px 64px; }
+  .why__grid { grid-template-columns: 1fr; gap: 24px; margin-top: 32px; max-width: 300px; text-align: center; }
+  .why__item h3 { margin-bottom: 8px; }
+
+  .cta { min-height: 429px; }
+  .cta::after { background: rgba(0,0,0,.56); }
+  .cta__body { margin-inline: auto; padding: 32px 24px; max-width: 314px; text-align: center; }
+  .cta__title { font-size: 20px; line-height: 24px; }
+  .cta__body p { font-size: 16px; line-height: 22px; margin-top: 16px; }
+
+  .faq { padding-block: 64px; }
+  .faq__list { margin-top: 32px; gap: 8px; }
+  .faq__q { font-size: 16px; line-height: 22px; padding: 21px 10px 21px 10px; gap: 16px; }
+  .faq__item[open] .faq__q { padding: 22px 10px 8px; }
+  .faq__a { padding: 0 10px 22px; font-size: 16px; line-height: 22px; }
+
+  /* footer: one centred column, social + legal centred underneath */
+  .footer { min-height: 621px; }
+  .footer::after { height: 100%; background: rgba(0,0,0,.40); }
+  .footer__main { padding-top: 56px; align-items: center; text-align: center; }
+  .footer__cta { width: min(324px, 100%); }
+  .footer__title { font-size: 32px; line-height: 38px; }
+  .footer__cta p { font-size: 16px; line-height: 19px; margin-top: 16px; }
+  .footer__cta .btn { margin-top: 32px; }
+  .social { margin-top: 140px; justify-content: center; }
+  .footer__bar { padding-top: 24px; }
+  .footer__bar-inner { flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+  .footer__legal { gap: 64px; }
+  .footer__copy { max-width: 284px; }
 }
 
-/* Very narrow phones: the brand, language chevron and CTA cannot all keep
-   their desktop sizes on one line - shrink them rather than let them collide. */
 @media (max-width: 400px) {
-  .nav__inner { gap: 12px; }
-  .nav__right { gap: 10px; }
-  .brand { gap: 10px; }
-  .brand__mark { width: 42px; height: 42px; }
-  .brand__word { width: 84px; height: 34px; }
-  .btn--light { padding: 9px 12px; font-size: 13px; }
-  .hero__title { font-size: 30px; line-height: 38px; }
   .wheel { --card-scale: .74; }
 }
 
@@ -435,5 +509,6 @@ h1, h2, h3, p { margin: 0; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
   .js [data-reveal] { opacity: 1 !important; transform: none !important; }
   .wheel__hub { animation: none !important; }
+  .js .wheel[data-reveal="spread"] .wheel__card { animation: none !important; opacity: 1 !important; }
   .btn:hover, .social__icons a:hover { transform: none; }
 }
