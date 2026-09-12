@@ -82,9 +82,9 @@
     </div>
 
     <!-- The wheel: cards sit every 12° around a large circle whose centre is far
-         below the viewport, so only the top arc shows. The hub spins anticlockwise,
-         carrying each card up the arc, through the top, and down the far side.
-         On first scroll-in the cards fan out from a single point at the top. -->
+         below the viewport, so only the top arc shows.
+         The cards fan out from a single point at the top when the band first
+         scrolls into view, then hold their slots. -->
     <div class="wheel" data-reveal="spread">
       <div class="wheel__hub">
         {% for c in wheel_cards %}
@@ -255,10 +255,18 @@
 
     var pending = targets.slice();
 
+    function atPageEnd() {
+      var doc = document.documentElement;
+      return window.innerHeight + window.pageYOffset >= doc.scrollHeight - 2;
+    }
+
     function onScreen(el) {
       var r = el.getBoundingClientRect();
       var vh = window.innerHeight || document.documentElement.clientHeight;
-      return r.top < vh * 0.94 && r.bottom > 0;
+      // The rect includes the pre-reveal offset, so something sitting in the last
+      // few px of the document (the copyright bar) can never clear the threshold
+      // on its own - once the page is scrolled to the end, everything counts.
+      return (r.top < vh * 0.94 && r.bottom > 0) || atPageEnd();
     }
 
     function sweep() {

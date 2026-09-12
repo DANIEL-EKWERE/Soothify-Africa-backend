@@ -154,18 +154,16 @@ h1, h2, h3, p { margin: 0; }
 .section__title { font-weight: 700; font-size: 36px; line-height: 43px; color: var(--c-ink); }
 .section__lede { font-size: 20px; line-height: 24px; margin-top: 24px; }
 
-/* ---------- the wheel ---------- */
-/* Cards orbit a circle of radius --R whose centre sits --R below the top of the
+/* ---------- the card fan ---------- */
+/* Cards sit on a circle of radius --R whose centre is --R below the top of the
    band, so only the shallow top arc is on screen. A card's angle sets BOTH its
    position on the circle and its tilt (rotate then translate along the rotated
-   axis), which is where the design's fanned ±12° look comes from for free.
-   The hub turns anticlockwise: at the top of a wheel that reads as moving left. */
+   axis), which is where the design's fanned ±12° look comes from for free. */
 .wheel {
   --R: 1540px;          /* big radius = shallow, elegant arc across the band */
   /* Neighbouring cards sit R*sin(12deg) apart, so the radius and the card size
      have to move together or they collide. --card-scale keeps that in step. */
   --card-scale: 1;
-  --spin: 120s;
   position: relative;
   height: 505px;
   margin-top: 64px;
@@ -181,17 +179,13 @@ h1, h2, h3, p { margin: 0; }
   left: 50%;
   top: calc(var(--R) + 190px);   /* circle centre, far below the visible band */
   width: 0; height: 0;
-  animation: wheel-spin var(--spin) linear infinite;
-  will-change: transform;
 }
-.wheel:hover .wheel__hub { animation-play-state: paused; }
 
 /* Entrance: every card starts collapsed to a point at the top of the circle
    (angle 0, tiny) and fans out to its own slot as the band scrolls into view.
    Cards nearer the top go first (--spread-delay grows with |angle|), so the fan
-   opens outward from the centre. The spin waits until the fan has opened. */
+   opens outward from the centre. Once open, the cards stay put. */
 .js .wheel[data-reveal="spread"]:not(.is-visible) .wheel__card { opacity: 0; }
-.js .wheel[data-reveal="spread"]:not(.is-visible) .wheel__hub  { animation-play-state: paused; }
 .js .wheel[data-reveal="spread"].is-visible .wheel__card {
   animation: wheel-spread 1.4s cubic-bezier(.2,.8,.2,1) var(--spread-delay, 0ms) both;
 }
@@ -199,11 +193,6 @@ h1, h2, h3, p { margin: 0; }
   from { opacity: 0; transform: rotate(0deg) translateY(calc(-1 * var(--R))) scale(.08); }
   25%  { opacity: 1; }
   to   { opacity: 1; transform: rotate(var(--a)) translateY(calc(-1 * var(--R))) scale(var(--card-scale)); }
-}
-
-@keyframes wheel-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(-360deg); }   /* negative = anticlockwise */
 }
 
 .wheel__card {
@@ -508,7 +497,6 @@ h1, h2, h3, p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
   .js [data-reveal] { opacity: 1 !important; transform: none !important; }
-  .wheel__hub { animation: none !important; }
   .js .wheel[data-reveal="spread"] .wheel__card { animation: none !important; opacity: 1 !important; }
   .btn:hover, .social__icons a:hover { transform: none; }
 }
