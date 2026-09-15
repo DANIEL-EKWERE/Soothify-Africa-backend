@@ -326,6 +326,53 @@ h1, h2, h3, p { margin: 0; }
 .faq__icon { border: 1.5px solid var(--c-ink); border-radius: 50%; }
 .faq__a { padding: 0 36px 36px; font-size: 18px; line-height: 25px; color: var(--c-ink); opacity: .72; }
 
+/* ---------- policy pages ---------- */
+/* No hero photo to sit on, so the nav gets its own dark band; the wordmark and
+   nav type are white, and every nav rule below carries over unchanged. */
+.page-head { background: var(--c-ink); color: var(--c-white); }
+
+.legal { padding-block: 72px 120px; }
+.legal__head { max-width: 780px; }
+.legal__stamp {
+  font-family: var(--font-ui); font-weight: 500; font-size: 14px; line-height: 20px;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--c-primary);
+}
+.legal__title { font-weight: 700; font-size: 44px; line-height: 53px; color: var(--c-ink); margin-top: 16px; }
+.legal__lede { font-size: 20px; line-height: 30px; color: var(--c-ink); opacity: .72; margin-top: 24px; }
+
+/* the rule doubles as the gap between the intro and the clauses */
+.legal__body {
+  max-width: 780px; margin-top: 48px; padding-top: 48px;
+  border-top: 1px solid var(--c-hairline);
+}
+.legal__section + .legal__section { margin-top: 40px; }
+.legal__section h2 { font-weight: 700; font-size: 22px; line-height: 30px; color: var(--c-ink); }
+.legal__section p  { font-size: 18px; line-height: 29px; color: var(--c-ink); opacity: .82; margin-top: 12px; }
+
+.legal__list { margin: 12px 0 0; padding-left: 22px; }
+.legal__list li {
+  font-size: 18px; line-height: 29px; color: var(--c-ink); opacity: .82;
+  padding-left: 6px;
+}
+.legal__list li + li { margin-top: 8px; }
+.legal__list::marker, .legal__list li::marker { color: var(--c-primary); }
+
+.legal__deflist { margin: 16px 0 0; }
+.legal__deflist dt { font-weight: 700; font-size: 18px; line-height: 26px; color: var(--c-ink); }
+.legal__deflist dd {
+  margin: 8px 0 0; padding-left: 16px; border-left: 2px solid var(--c-primary);
+  font-size: 18px; line-height: 29px; color: var(--c-ink); opacity: .82;
+}
+.legal__deflist dd + dt { margin-top: 24px; }
+
+.legal__back { margin-top: 56px; }
+.legal__back a {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-ui); font-weight: 600; font-size: 16px; color: var(--c-primary);
+}
+.legal__back a::before { content: "\2190"; }
+.legal__back a:hover { text-decoration: underline; }
+
 /* ---------- footer ---------- */
 .footer { position: relative; min-height: 721px; display: flex; flex-direction: column; color: var(--c-white); isolation: isolate; }
 .footer__bg { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; }
@@ -474,6 +521,19 @@ h1, h2, h3, p { margin: 0; }
   .faq__q { font-size: 16px; line-height: 22px; padding: 21px 10px 21px 10px; gap: 16px; }
   .faq__item[open] .faq__q { padding: 22px 10px 8px; }
   .faq__a { padding: 0 10px 22px; font-size: 16px; line-height: 22px; }
+
+  /* A horizontal reveal offset is wider than the margin a phone has to spare:
+     until the element reveals it sticks out past the viewport edge, which widens
+     the layout viewport and zooms the whole page out. Slide these up instead. */
+  .js [data-reveal="left"], .js [data-reveal="right"] { transform: translate3d(0, 46px, 0); }
+
+  /* policy pages */
+  .legal { padding-block: 48px 72px; }
+  .legal__title { font-size: 30px; line-height: 38px; }
+  .legal__lede { font-size: 17px; line-height: 26px; }
+  .legal__body { margin-top: 32px; padding-top: 32px; }
+  .legal__section h2 { font-size: 19px; line-height: 26px; }
+  .legal__section p, .legal__list li, .legal__deflist dd { font-size: 16px; line-height: 26px; }
 
   /* footer: one centred column, social + legal centred underneath */
   .footer { min-height: 621px; }

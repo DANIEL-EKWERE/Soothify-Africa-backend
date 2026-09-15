@@ -65,3 +65,22 @@ def _wheel():
 
 def landing(request):
     return render(request, 'home/landing.html', {'wheel_cards': _wheel()})
+
+
+# The policy pages are static prose; the date is the one the copy was approved
+# with, so it is stated here rather than generated from "now".
+LEGAL_UPDATED = _('September 2026')
+
+
+def privacy(request):
+    return render(request, 'home/privacy.html', {
+        'page_title': _('Privacy Policy'),
+        'last_updated': LEGAL_UPDATED,
+    })
+
+
+def terms(request):
+    return render(request, 'home/terms.html', {
+        'page_title': _('Terms of Use'),
+        'last_updated': LEGAL_UPDATED,
+    })

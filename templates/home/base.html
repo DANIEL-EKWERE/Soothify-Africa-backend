@@ -1,0 +1,166 @@
+{% load i18n static %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% translate "Soothify Africa" %}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{% endblock %}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,600;6..12,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+</head>
+<body>
+
+{% block header %}
+  <!-- Pages without a hero photo run the nav on a solid band: the wordmark is
+       a white SVG, so it needs a dark ground either way. -->
+  <header class="page-head">{% include "home/_nav.html" %}</header>
+{% endblock %}
+
+{% block body %}{% endblock %}
+
+{% include "home/_footer.html" %}
+
+<script>
+  // Mark the document as JS-capable *before* first paint so [data-reveal] elements
+  // start hidden. Without JS the class is never added and everything stays visible.
+  document.documentElement.classList.add('js');
+</script>
+
+<script>
+  // Reveal on scroll. Anything already on screen is revealed synchronously, so the
+  // first paint is never blank; the rest are watched. An IntersectionObserver does
+  // the watching when it is behaving, with a rAF-throttled scroll pass as backup --
+  // content must never be able to stay hidden just because a callback didn't arrive.
+  (function () {
+    var targets = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
+    if (!targets.length) return;
+
+    function show(el) { el.classList.add('is-visible'); }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      targets.forEach(show);
+      return;
+    }
+
+    // stagger siblings so grids cascade instead of snapping in together
+    targets.forEach(function (el) {
+      var kin = el.parentElement ? Array.prototype.filter.call(
+        el.parentElement.children, function (c) { return c.hasAttribute('data-reveal'); }) : [];
+      var i = kin.indexOf(el);
+      if (i > 0) el.style.setProperty('--reveal-delay', Math.min(i, 6) * 130 + 'ms');
+    });
+
+    var pending = targets.slice();
+
+    function atPageEnd() {
+      var doc = document.documentElement;
+      return window.innerHeight + window.pageYOffset >= doc.scrollHeight - 2;
+    }
+
+    function onScreen(el) {
+      var r = el.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      // The rect includes the pre-reveal offset, so something sitting in the last
+      // few px of the document (the copyright bar) can never clear the threshold
+      // on its own - once the page is scrolled to the end, everything counts.
+      return (r.top < vh * 0.94 && r.bottom > 0) || atPageEnd();
+    }
+
+    function sweep() {
+      for (var i = pending.length - 1; i >= 0; i--) {
+        if (onScreen(pending[i])) { show(pending[i]); pending.splice(i, 1); }
+      }
+      if (!pending.length) {
+        window.removeEventListener('scroll', queue);
+        window.removeEventListener('resize', queue);
+      }
+    }
+
+    var queued = false;
+    function queue() {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () { queued = false; sweep(); });
+    }
+
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var at = pending.indexOf(entry.target);
+          if (at > -1) { show(entry.target); pending.splice(at, 1); }
+          io.unobserve(entry.target);
+        });
+      }, { threshold: 0.08, rootMargin: '0px 0px -4% 0px' });
+      targets.forEach(function (el) { io.observe(el); });
+    }
+
+    window.addEventListener('scroll', queue, { passive: true });
+    window.addEventListener('resize', queue);
+    sweep();                       // whatever is already in view, right now
+    window.addEventListener('load', queue);
+  })();
+</script>
+
+<script>
+  // Phone menu — the hamburger shows/hides .nav__right; the CSS only honours
+  // data-open below the phone breakpoint, so this is inert on desktop.
+  (function () {
+    var nav = document.querySelector('.nav');
+    var toggle = document.querySelector('[data-nav-toggle]');
+    var menu = document.querySelector('[data-nav-menu]');
+    if (!nav || !toggle || !menu) return;
+
+    function setOpen(open) {
+      nav.dataset.open = String(open);
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    setOpen(false);
+
+    toggle.addEventListener('click', function () {
+      setOpen(nav.dataset.open !== 'true');
+    });
+    // following any link leaves this view (the waitlist CTA opens a new tab), so
+    // close the menu rather than leave it hanging open behind
+    menu.addEventListener('click', function (e) {
+      if (e.target.closest('a')) setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setOpen(false);
+    });
+  })();
+</script>
+
+<script>
+  // Language menu — click to toggle, close on outside click or Escape.
+  (function () {
+    var root = document.querySelector('[data-lang]');
+    if (!root) return;
+    var toggle = root.querySelector('[data-lang-toggle]');
+    var menu = root.querySelector('[data-lang-menu]');
+
+    function setOpen(open) {
+      root.dataset.open = String(open);
+      menu.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    setOpen(false);
+
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setOpen(menu.hidden);
+    });
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') setOpen(false);
+    });
+  })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

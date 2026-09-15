@@ -1,0 +1,33 @@
+{% load i18n static %}
+<footer class="footer" id="waitlist">
+  <img class="footer__bg" src="{% static 'img/footer.jpg' %}" alt="" width="1333" height="2000" loading="lazy">
+
+  <div class="shell footer__main">
+    <div class="social" data-reveal="left">
+      <span class="social__label">{% translate "Follow Us" %}</span>
+      <!-- Facebook has no page of its own yet, so it points at facebook.com. -->
+      <div class="social__icons">
+        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on Facebook" %}"><img src="{% static 'img/icon-facebook.svg' %}" alt="" width="24" height="24"></a>
+        <a href="https://x.com/soothifyafrica" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on X" %}"><img src="{% static 'img/icon-x.svg' %}" alt="" width="24" height="24"></a>
+        <a href="https://instagram.com/soothifyafrica" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on Instagram" %}"><img src="{% static 'img/icon-instagram.svg' %}" alt="" width="24" height="24"></a>
+        <a href="https://www.linkedin.com/company/soothify-africa/" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on LinkedIn" %}"><img src="{% static 'img/icon-linkedin.svg' %}" alt="" width="24" height="24"></a>
+      </div>
+    </div>
+
+    <div class="footer__cta" data-reveal="right">
+      <h2 class="footer__title">{% translate "Take charge of your well-being. Don't let stress run the show" %}</h2>
+      <p>{% translate "We're putting the final touches on everything. Drop your email to claim your spot on the waitlist" %}</p>
+      <a class="btn btn--primary" href="{{ waitlist_url }}" target="_blank" rel="noopener noreferrer">{% translate "Join waitlist" %}</a>
+    </div>
+  </div>
+
+  <div class="shell footer__bar">
+    <div class="footer__bar-inner" data-reveal="up">
+      <nav class="footer__legal" aria-label="{% translate "Legal" %}">
+        <a href="{% url 'home:privacy' %}">{% translate "Privacy Policy" %}</a>
+        <a href="{% url 'home:terms' %}">{% translate "Terms of Use" %}</a>
+      </nav>
+      <p class="footer__copy">{% now "Y" as year %}{% blocktranslate %}© {{ year }} . Powered by soothifyafrica. All Rights Reserved.{% endblocktranslate %}</p>
+    </div>
+  </div>
+</footer>

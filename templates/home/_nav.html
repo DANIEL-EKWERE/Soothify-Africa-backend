@@ -1,0 +1,42 @@
+{% load i18n static %}
+<nav class="nav" aria-label="{% translate "Primary" %}">
+  <div class="shell nav__inner">
+    <a class="brand" href="{% url 'home:landing' %}" aria-label="{% translate "Soothify Africa — home" %}">
+      <img class="brand__mark" src="{% static 'img/logo-mark.jpg' %}" alt="" width="51" height="51">
+      <img class="brand__word" src="{% static 'img/logo-wordmark.svg' %}" alt="Soothify" width="117" height="47">
+    </a>
+
+    <!-- Phones collapse the language switcher and CTA behind this (Figma "phone/ header") -->
+    <button class="nav__burger" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="{% translate "Menu" %}" data-nav-toggle>
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path class="nav__burger-open"  d="M3 6h18M3 12h18M3 18h18"/>
+        <path class="nav__burger-close" d="M5 5l14 14M19 5L5 19"/>
+      </svg>
+    </button>
+
+    <div class="nav__right" id="nav-menu" data-nav-menu>
+      <div class="lang" data-lang>
+        <button class="lang__toggle" type="button" aria-expanded="false" aria-controls="lang-menu" data-lang-toggle>
+          <span>{% translate "Change Language" %}</span>
+          <svg class="lang__chev" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        {% get_current_language as CURRENT %}
+        <form class="lang__menu" id="lang-menu" method="post" action="{% url 'set_language' %}" hidden data-lang-menu>
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          {% get_available_languages as LANGS %}
+          {% for code, name in LANGS %}
+            <button class="lang__opt" type="submit" name="language" value="{{ code }}"
+                    {% if code == CURRENT %}aria-current="true"{% endif %}>{{ name }}</button>
+          {% endfor %}
+        </form>
+      </div>
+
+      <div class="nav__actions">
+        <a class="btn btn--light" href="{{ waitlist_url }}" target="_blank" rel="noopener noreferrer">{% translate "Join Waitlist" %}</a>
+      </div>
+    </div>
+  </div>
+</nav>

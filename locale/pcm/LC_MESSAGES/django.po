@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: Soothify Africa\n"
@@ -207,8 +208,8 @@ msgstr "Follow Us"
 msgid "Soothify Africa on Facebook"
 msgstr "Soothify Africa for Facebook"
 
-msgid "Soothify Africa on Twitter"
-msgstr "Soothify Africa for Twitter"
+msgid "Soothify Africa on X"
+msgstr "Soothify Africa for X"
 
 msgid "Soothify Africa on Instagram"
 msgstr "Soothify Africa for Instagram"
@@ -243,3 +244,21 @@ msgstr "© {{ year }} . Powered by soothifyafrica. All Rights Reserved."
 
 msgid "Menu"
 msgstr "Menu"
+
+msgid "Soothify Africa"
+msgstr "Soothify Africa"
+
+msgid "Last updated"
+msgstr "Last updated"
+
+msgid "Back to home"
+msgstr "Back to home"
+
+msgid "The terms that govern your use of Soothify Africa."
+msgstr "The terms wey guide how you dey use Soothify Africa."
+
+msgid "What Soothify Africa collects, and how we handle it."
+msgstr "Wetin Soothify Africa dey collect, and how we dey handle am."
+
+msgid "September 2026"
+msgstr "September 2026"

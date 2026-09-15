@@ -1,0 +1,29 @@
+{% extends "home/base.html" %}
+{% load i18n %}
+
+{% comment %}
+  Shared shell for the policy pages. The prose itself lives in the per-page
+  templates below the `legal_body` block: legal copy is deliberately NOT run
+  through gettext, so both languages serve the same authoritative English text
+  until a reviewed Pidgin version exists.
+{% endcomment %}
+
+{% block body %}
+<main class="legal">
+  <div class="shell">
+    <header class="legal__head" data-reveal="mask">
+      <p class="legal__stamp">{% translate "Last updated" %}: {{ last_updated }}</p>
+      <h1 class="legal__title">{{ page_title }}</h1>
+      <p class="legal__lede">{% block legal_lede %}{% endblock %}</p>
+    </header>
+
+    <div class="legal__body" data-reveal="up">
+      {% block legal_body %}{% endblock %}
+    </div>
+
+    <p class="legal__back">
+      <a href="{% url 'home:landing' %}">{% translate "Back to home" %}</a>
+    </p>
+  </div>
+</main>
+{% endblock %}

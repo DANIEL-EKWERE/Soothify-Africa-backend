@@ -91,6 +91,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.template.context_processors.i18n',
+                'home.context_processors.site',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -147,6 +148,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+# Where every "Join waitlist" button points. A Google Form for now, so signups
+# land in the linked response sheet rather than anywhere in this project.
+WAITLIST_URL = 'https://forms.gle/u79QuAxDhqmhvFwr8'
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
