@@ -21,7 +21,7 @@ WHEEL_CARDS = [
     },
     {
         'slug': 'therapy',
-        'img': 'img/card-therapy.jpg',
+        'img': 'img/card-therapy.webp',
         'alt': _('Woman in an online therapy session'),
         'title': _('One-on-One Therapy Sessions'),
         'body': _('Safe, confidential spaces to talk through things with licensed '
@@ -46,18 +46,27 @@ WHEEL_CARDS = [
 SLOT_DEGREES = 12   # angular gap between neighbouring cards
 FAN_REACH = 4       # slots either side of centre; ±48° is already off the visible arc
 CENTRE = 2          # index of the card that sits at the top of the arc (therapy, as designed)
+TURN_PER_SLOT = 18  # degrees of self-spin per slot from centre, during the entrance only
 
 
 def _wheel():
     """The designed cards laid along the top arc, centre outwards, each with its
     own signed angle. Slots beyond the five designed cards repeat the sequence so
-    the arc stays full on wide screens; those repeats are decorative only."""
+    the arc stays full on wide screens; those repeats are decorative only.
+
+    One extra slot sits past the right-hand end (-48° .. +60°). The carousel
+    steps every card one slot left and moves the card leaving the left end to
+    that spare slot, so ten slots -- a whole number of turns of the five-card
+    sequence -- keep neighbours in order however long it runs."""
     cards = []
-    for offset in range(-FAN_REACH, FAN_REACH + 1):
+    for offset in range(-FAN_REACH, FAN_REACH + 2):
         card = dict(WHEEL_CARDS[(CENTRE + offset) % len(WHEEL_CARDS)])
         card['angle'] = offset * SLOT_DEGREES
         # the fan opens from the centre, so cards further out start later
         card['delay'] = abs(offset) * 70
+        # how far the card spins on its own axis on the way out; the sign flips
+        # either side of centre so the two halves counter-turn as they open
+        card['turn'] = -offset * TURN_PER_SLOT
         card['decorative'] = abs(offset) > len(WHEEL_CARDS) // 2
         cards.append(card)
     return cards

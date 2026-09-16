@@ -70,6 +70,12 @@ h1, h2, h3, p { margin: 0; }
 }
 .btn--primary:hover { background: #255FD6; box-shadow: 0 10px 24px rgba(47,111,237,.32); }
 
+/* ---------- display headings ---------- */
+/* Figma stores these in sentence case and applies Title Case as a text-case
+   style, in both the English and Pidgin frames. Doing the same here keeps the
+   translation strings as plain sentences. */
+.hero__title, .section__title, .cta__title, .footer__title, .plate h3 { text-transform: capitalize; }
+
 /* ---------- hero ---------- */
 .hero {
   position: relative;
@@ -149,7 +155,7 @@ h1, h2, h3, p { margin: 0; }
 .hero__aside p { font-size: 16px; line-height: 23px; margin-bottom: 32px; }
 
 /* ---------- section shell ---------- */
-.section { padding-block: 72px 0; }   /* .why owns the gap below */
+.section { padding-block: 48px 0; }   /* .why owns the gap below */
 .section__head { text-align: center; max-width: 500px; margin-inline: auto; }
 .section__title { font-weight: 700; font-size: 36px; line-height: 43px; color: var(--c-ink); }
 .section__lede { font-size: 20px; line-height: 24px; margin-top: 24px; }
@@ -160,39 +166,66 @@ h1, h2, h3, p { margin: 0; }
    position on the circle and its tilt (rotate then translate along the rotated
    axis), which is where the design's fanned ±12° look comes from for free. */
 .wheel {
-  --R: 1540px;          /* big radius = shallow, elegant arc across the band */
+  --R: 1920px;          /* big radius = shallow, elegant arc across the band */
   /* Neighbouring cards sit R*sin(12deg) apart, so the radius and the card size
      have to move together or they collide. --card-scale keeps that in step. */
-  --card-scale: 1;
+  --card-scale: 1.3;
+  --hub-y: 240px;       /* how far down the band the centre card's middle sits */
+  --fade-from: 76%;     /* where the bottom fade-out starts */
   position: relative;
-  height: 505px;
-  margin-top: 64px;
+  height: 605px;
+  margin-top: 40px;
   overflow: hidden;     /* clips everything but the top of the circle */
   /* Cards low on the arc would otherwise meet the band edge as a hard horizontal
      slice. Fading the last fifth lets them dissolve into the page instead. */
-  -webkit-mask-image: linear-gradient(to bottom, #000 76%, rgba(0,0,0,0) 100%);
-          mask-image: linear-gradient(to bottom, #000 76%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 var(--fade-from), rgba(0,0,0,0) 100%);
+          mask-image: linear-gradient(to bottom, #000 var(--fade-from), rgba(0,0,0,0) 100%);
 }
 
 .wheel__hub {
   position: absolute;
   left: 50%;
-  top: calc(var(--R) + 190px);   /* circle centre, far below the visible band */
+  top: calc(var(--R) + var(--hub-y));   /* circle centre, far below the visible band */
   width: 0; height: 0;
 }
 
 /* Entrance: every card starts collapsed to a point at the top of the circle
    (angle 0, tiny) and fans out to its own slot as the band scrolls into view.
    Cards nearer the top go first (--spread-delay grows with |angle|), so the fan
-   opens outward from the centre. Once open, the cards stay put. */
+   opens outward from the centre.
+
+   The trailing rotate() is applied AFTER the card has been pushed out to the
+   rim, so it turns the card about its own centre rather than moving it round
+   the arc: each one spins out of the point and unwinds to rest. --turn is set
+   per card and mirrors either side of centre, so the two halves counter-turn.
+   Once open, the cards stay put -- nothing rotates after the entrance. */
 .js .wheel[data-reveal="spread"]:not(.is-visible) .wheel__card { opacity: 0; }
 .js .wheel[data-reveal="spread"].is-visible .wheel__card {
-  animation: wheel-spread 1.4s cubic-bezier(.2,.8,.2,1) var(--spread-delay, 0ms) both;
+  animation: wheel-spread 1.5s cubic-bezier(.2,.8,.2,1) var(--spread-delay, 0ms) both;
 }
+/* Carousel: once every card has finished its entrance, the page script adds
+   .is-settled and starts stepping each card's --a by one slot. Dropping the
+   entrance animation hands transform back to normal styles, so the change to
+   --a eases the card round the arc. Its final keyframe equals the resting
+   transform, so nothing jumps at the handover. */
+.js .wheel[data-reveal="spread"].is-visible.is-settled .wheel__card {
+  animation: none;
+  transition: transform 1.2s cubic-bezier(.65, 0, .35, 1);
+}
+/* the card moving from the far left end to the spare right-hand slot is out
+   of sight at both, so it jumps instead of sweeping across behind the others */
+.js .wheel[data-reveal="spread"].is-visible.is-settled .wheel__card.is-wrapping { transition: none; }
+
 @keyframes wheel-spread {
-  from { opacity: 0; transform: rotate(0deg) translateY(calc(-1 * var(--R))) scale(.08); }
-  25%  { opacity: 1; }
-  to   { opacity: 1; transform: rotate(var(--a)) translateY(calc(-1 * var(--R))) scale(var(--card-scale)); }
+  from {
+    opacity: 0;
+    transform: rotate(0deg) translateY(calc(-1 * var(--R))) scale(.08) rotate(var(--turn, 0deg));
+  }
+  25% { opacity: 1; }
+  to {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(calc(-1 * var(--R))) scale(var(--card-scale)) rotate(0deg);
+  }
 }
 
 .wheel__card {
@@ -280,10 +313,10 @@ h1, h2, h3, p { margin: 0; }
 }
 
 /* ---------- why join ---------- */
-.why { padding-block: 96px 64px; }
+.why { padding-block: 56px 40px; }
 .why__grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 64px;
-  margin-top: 64px; max-width: 1092px; margin-inline: auto;
+  margin-top: 40px; max-width: 1092px; margin-inline: auto;
 }
 .why__item h3 { font-weight: 700; font-size: 20px; line-height: 29px; margin-bottom: 16px; }
 .why__item p  { font-size: 16px; line-height: 23px; }
@@ -301,8 +334,8 @@ h1, h2, h3, p { margin: 0; }
 .cta__body .btn { margin-top: 32px; }
 
 /* ---------- FAQ ---------- */
-.faq { padding-block: 120px 128px; }
-.faq__list { max-width: 982px; margin: 64px auto 0; display: flex; flex-direction: column; gap: 16px; }
+.faq { padding-block: 72px 80px; }
+.faq__list { max-width: 982px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 16px; }
 .faq__item {
   border-radius: var(--radius); background: transparent; border: 1px solid var(--c-hairline);
   transition: background-color .2s ease, border-color .2s ease;
@@ -450,7 +483,7 @@ h1, h2, h3, p { margin: 0; }
   .why__grid { grid-template-columns: 1fr 1fr; gap: 40px; }
 
   /* the wider radius flattens the arc, so the band needs less height to hold it */
-  .wheel { --R: 1360px; --card-scale: .82; height: 430px; }
+  .wheel { --R: 1670px; --card-scale: 1.06; --hub-y: 210px; height: 490px; }
 
   /* the footer is a two-column band on desktop; stack it once it cannot fit */
   .footer__main { flex-direction: column; padding-top: 88px; }
@@ -501,13 +534,15 @@ h1, h2, h3, p { margin: 0; }
   .btn--primary { font-size: 16px; padding: 18px 16px; }
 
   /* sections */
-  .section { padding-block: 56px 0; }
+  .section { padding-block: 40px 0; }
   .section__title, .cta__title { font-size: 24px; line-height: 29px; }
   .section__lede { font-size: 16px; line-height: 21px; margin-top: 16px; opacity: .72; }
-  .wheel { --R: 1180px; --card-scale: .8; height: 400px; margin-top: 32px; }
+  /* The band hugs the centre card: ~36px under the intro, ~40px above the
+     next heading. The fade starts late so it only touches the side cards. */
+  .wheel { --R: 1470px; --card-scale: 1.04; --hub-y: 185px; --fade-from: 90%; height: 398px; margin-top: 24px; }
 
-  .why { padding-block: 24px 64px; }
-  .why__grid { grid-template-columns: 1fr; gap: 24px; margin-top: 32px; max-width: 300px; text-align: center; }
+  .why { padding-block: 0 40px; }
+  .why__grid { grid-template-columns: 1fr; gap: 24px; margin-top: 24px; max-width: 300px; text-align: center; }
   .why__item h3 { margin-bottom: 8px; }
 
   .cta { min-height: 429px; }
@@ -516,8 +551,8 @@ h1, h2, h3, p { margin: 0; }
   .cta__title { font-size: 20px; line-height: 24px; }
   .cta__body p { font-size: 16px; line-height: 22px; margin-top: 16px; }
 
-  .faq { padding-block: 64px; }
-  .faq__list { margin-top: 32px; gap: 8px; }
+  .faq { padding-block: 48px; }
+  .faq__list { margin-top: 24px; gap: 8px; }
   .faq__q { font-size: 16px; line-height: 22px; padding: 21px 10px 21px 10px; gap: 16px; }
   .faq__item[open] .faq__q { padding: 22px 10px 8px; }
   .faq__a { padding: 0 10px 22px; font-size: 16px; line-height: 22px; }
@@ -543,7 +578,7 @@ h1, h2, h3, p { margin: 0; }
   .footer__title { font-size: 32px; line-height: 38px; }
   .footer__cta p { font-size: 16px; line-height: 19px; margin-top: 16px; }
   .footer__cta .btn { margin-top: 32px; }
-  .social { margin-top: 140px; justify-content: center; }
+  .social { margin-top: 24px; justify-content: center; }
   .footer__bar { padding-top: 24px; }
   .footer__bar-inner { flex-direction: column; align-items: center; gap: 16px; text-align: center; }
   .footer__legal { gap: 64px; }
@@ -551,7 +586,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 @media (max-width: 400px) {
-  .wheel { --card-scale: .74; }
+  .wheel { --card-scale: .96; --hub-y: 171px; height: 370px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

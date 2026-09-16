@@ -43,7 +43,7 @@
       <div class="wheel__hub">
         {% for c in wheel_cards %}
         <article class="wheel__card{% if c.slug == 'therapy' %} wheel__card--therapy{% endif %}"
-                 style="--a: {{ c.angle }}deg; --spread-delay: {{ c.delay }}ms"{% if c.decorative %} aria-hidden="true"{% endif %}>
+                 style="--a: {{ c.angle }}deg; --spread-delay: {{ c.delay }}ms; --turn: {{ c.turn }}deg"{% if c.decorative %} aria-hidden="true"{% endif %}>
           <div class="tile"><img src="{% static c.img %}" alt="{{ c.alt }}" loading="lazy"></div>
           <div class="plate">
             <h3>{{ c.title }}</h3>
@@ -120,6 +120,67 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+  // Card carousel. After the fan-out entrance every card steps one slot to the
+  // left every few seconds, easing round the arc (see .is-settled in the CSS).
+  // A card leaving the far left end is moved to the spare slot past the right
+  // end; both are below the visible band, so the loop never shows a seam.
+  (function () {
+    var wheel = document.querySelector('.wheel[data-reveal="spread"]');
+    if (!wheel) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    var HOLD = 3200;   // ms each position is held, including the 1.2s glide
+    var cards = [].slice.call(wheel.querySelectorAll('.wheel__card'));
+    var angles = cards.map(function (c) { return parseFloat(c.style.getPropertyValue('--a')); });
+    var step = angles.length > 1 ? Math.abs(angles[1] - angles[0]) : 12;
+    var first = Math.min.apply(null, angles);
+    var last = Math.max.apply(null, angles);
+
+    var hovering = false, onScreen = true, timer = null, ended = 0;
+
+    function advance() {
+      cards.forEach(function (card, i) {
+        var next = angles[i] - step;
+        if (next < first) {
+          next = last;
+          card.classList.add('is-wrapping');
+          card.style.setProperty('--a', next + 'deg');
+          void card.offsetWidth;            // commit the jump before transitions return
+          card.classList.remove('is-wrapping');
+        } else {
+          card.style.setProperty('--a', next + 'deg');
+        }
+        angles[i] = next;
+      });
+    }
+
+    function tick() {
+      if (!hovering && onScreen && !document.hidden) advance();
+    }
+
+    function start() {
+      wheel.classList.add('is-settled');
+      timer = window.setInterval(tick, HOLD);
+    }
+
+    // start once the last card has finished fanning out
+    wheel.addEventListener('animationend', function (e) {
+      if (timer || !e.target.classList.contains('wheel__card')) return;
+      if (++ended >= cards.length) start();
+    });
+
+    // hold still while someone is reading a card, or while it is off screen
+    wheel.addEventListener('mouseenter', function () { hovering = true; });
+    wheel.addEventListener('mouseleave', function () { hovering = false; });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        onScreen = entries[0].isIntersecting;
+      }).observe(wheel);
+    }
+  })();
+</script>
+
 <script>
   // Hero video. Plays everywhere including phones; at ~1.8MB the clip is small
   // enough that gating it on screen width is not worth the lost impact. The
