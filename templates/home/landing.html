@@ -1,5 +1,5 @@
 {% extends "home/base.html" %}
-{% load i18n static %}
+{% load i18n static brand %}
 
 {% block title %}{% translate "Soothify Africa — Find Your Inner Calm" %}{% endblock %}
 {% block description %}{% translate "Soothify Africa is building a simpler way to find balance, right here at home. Therapy, guided meditation, Pilates and wellness content in Pidgin and English. Join the waitlist for early access." %}{% endblock %}
@@ -19,7 +19,7 @@
   <div class="shell hero__body">
     <h1 class="hero__title" data-reveal="mask">{% blocktranslate %}Find Your<br>Inner Calm{% endblocktranslate %}</h1>
     <div class="hero__aside" data-reveal="right">
-      <p>{% translate "Welcome to Soothify! Your space to breathe, reset, and take care of yourself is on the way." %}</p>
+      <p>{% translate "Welcome to Soothify! Your space to breathe, reset, and take care of yourself is on the way." as welcome %}{{ welcome|brandmark }}</p>
       <a class="btn btn--primary" href="{{ waitlist_url }}" target="_blank" rel="noopener noreferrer">{% translate "Join waitlist" %}</a>
     </div>
   </div>
@@ -98,19 +98,19 @@
       </div>
       <div class="faq__list">
         <details class="faq__item" data-reveal="up" open>
-          <summary class="faq__q">{% translate "Is Soothify live right now?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <summary class="faq__q"><span class="faq__q-text">{% translate "Is Soothify live right now?" as faq_live %}{{ faq_live|brandmark }}</span> <span class="faq__icon" aria-hidden="true"></span></summary>
           <p class="faq__a">{% translate "Not yet! We are currently building and polishing the MVP to make sure it feels just right. Joining the waitlist means you'll be the absolute first to know the moment we open access." %}</p>
         </details>
         <details class="faq__item" data-reveal="up">
-          <summary class="faq__q">{% translate "What do I get by joining the waitlist?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <summary class="faq__q"><span class="faq__q-text">{% translate "What do I get by joining the waitlist?" %}</span> <span class="faq__icon" aria-hidden="true"></span></summary>
           <p class="faq__a">{% translate "Early access ahead of the public launch, plus first word on new features and launch offers as they land." %}</p>
         </details>
         <details class="faq__item" data-reveal="up">
-          <summary class="faq__q">{% translate "Will therapy and content really be available in Pidgin?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <summary class="faq__q"><span class="faq__q-text">{% translate "Will therapy and content really be available in Pidgin?" %}</span> <span class="faq__icon" aria-hidden="true"></span></summary>
           <p class="faq__a">{% translate "Yes. Pidgin and English are both first-class from day one, so you can switch to whichever language feels most natural to you." %}</p>
         </details>
         <details class="faq__item" data-reveal="up">
-          <summary class="faq__q">{% translate "Are therapy sessions truly confidential?" %} <span class="faq__icon" aria-hidden="true"></span></summary>
+          <summary class="faq__q"><span class="faq__q-text">{% translate "Are therapy sessions truly confidential?" %}</span> <span class="faq__icon" aria-hidden="true"></span></summary>
           <p class="faq__a">{% translate "Always. Sessions are private between you and your licensed professional, and your data stays protected." %}</p>
         </details>
       </div>

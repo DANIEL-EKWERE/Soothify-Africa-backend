@@ -1,11 +1,12 @@
 {% extends "home/base.html" %}
-{% load i18n %}
+{% load i18n brand %}
 
 {% comment %}
   Shared shell for the policy pages. The prose itself lives in the per-page
-  templates below the `legal_body` block: legal copy is deliberately NOT run
-  through gettext, so both languages serve the same authoritative English text
-  until a reviewed Pidgin version exists.
+  templates below the `legal_body` block, one file per language (terms.html is
+  English, terms_pcm.html is Pidgin; the view picks by active language). Legal
+  copy is deliberately NOT run through gettext: each version is reviewed as a
+  whole document, not string by string.
 {% endcomment %}
 
 {% block body %}
@@ -14,11 +15,11 @@
     <header class="legal__head" data-reveal="mask">
       <p class="legal__stamp">{% translate "Last updated" %}: {{ last_updated }}</p>
       <h1 class="legal__title">{{ page_title }}</h1>
-      <p class="legal__lede">{% block legal_lede %}{% endblock %}</p>
+      <p class="legal__lede">{% filter brandmark %}{% block legal_lede %}{% endblock %}{% endfilter %}</p>
     </header>
 
     <div class="legal__body" data-reveal="up">
-      {% block legal_body %}{% endblock %}
+      {% filter brandmark %}{% block legal_body %}{% endblock %}{% endfilter %}
     </div>
 
     <p class="legal__back">

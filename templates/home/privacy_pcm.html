@@ -1,0 +1,53 @@
+{% extends "home/legal.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Privacy Policy" %} — Soothify Africa{% endblock %}
+{% block description %}{% translate "What Soothify Africa collects, and how we handle it." %}{% endblock %}
+
+{% block legal_lede %}For Soothify, we dey value your privacy well well and we promise to protect your personal information. Dis policy go explain wetin we dey collect and how we dey handle am.{% endblock %}
+
+{% block legal_body %}
+  <section class="legal__section">
+    <h2>1. Information We Dey Collect</h2>
+    <dl class="legal__deflist">
+      <dt>Intake &amp; Preference Data</dt>
+      <dd>Information wey you voluntarily share when you dey join us or booking session (like the language wey you prefer, your wellness goals, and your experience level) to help us tailor your experience and match you with the right guides.</dd>
+
+      <dt>Communication Data</dt>
+      <dd>Information wey you give us when you message us with questions or feedback.</dd>
+
+      <dt>Technical Data</dt>
+      <dd>Normal analytics wey no carry person name, just to see how people dey use our landing page so we fit make am work better.</dd>
+    </dl>
+  </section>
+
+  <section class="legal__section">
+    <h2>2. How We Dey Use Your Information</h2>
+    <p>We dey use the data wey we collect only to:</p>
+    <ul class="legal__list">
+      <li>Make your Soothify experience personal for you.</li>
+      <li>Match you with correct wellness guides and licensed experts based on the answers wey you give for intake.</li>
+      <li>Send you important updates about our MVP launch and app features (if you agree to receive them).</li>
+    </ul>
+  </section>
+
+  <section class="legal__section">
+    <h2>3. Data Sharing &amp; Confidentiality</h2>
+    <p>We no dey sell, trade, or give your personal information to third party. Your intake answers and session details remain strictly between you and your matched guide.</p>
+  </section>
+
+  <section class="legal__section">
+    <h2>4. Data Security</h2>
+    <p>We dey use standard cybersecurity and tech safeguards to protect your personal data make unauthorized person no enter am, change am, or leak am.</p>
+  </section>
+
+  <section class="legal__section">
+    <h2>5. Your Choices</h2>
+    <p>You get right make you no answer optional intake questions, though some things like expert matching fit limited if you no put them. You fit also ask us make we delete your data anytime by messaging our team.</p>
+  </section>
+
+  <section class="legal__section">
+    <h2>6. Contact Us</h2>
+    <p>If you get any question about dis Terms or our Privacy Policy, make you reach out to us direct through our official communication channels.</p>
+  </section>
+{% endblock %}

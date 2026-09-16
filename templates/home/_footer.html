@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n static brand %}
 <footer class="footer" id="waitlist">
   <img class="footer__bg" src="{% static 'img/footer.jpg' %}" alt="" width="1333" height="2000" loading="lazy">
 
@@ -27,7 +27,7 @@
         <a href="{% url 'home:privacy' %}">{% translate "Privacy Policy" %}</a>
         <a href="{% url 'home:terms' %}">{% translate "Terms of Use" %}</a>
       </nav>
-      <p class="footer__copy">{% now "Y" as year %}{% blocktranslate %}© {{ year }} . Powered by soothifyafrica. All Rights Reserved.{% endblocktranslate %}</p>
+      <p class="footer__copy">{% now "Y" as year %}{% blocktranslate asvar copyright %}© {{ year }} . Powered by soothifyafrica. All Rights Reserved.{% endblocktranslate %}{{ copyright|brandmark }}</p>
     </div>
   </div>
 </footer>

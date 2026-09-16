@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language, gettext_lazy as _
 
 # One turn of the wheel. The five designed cards repeat around the full circle so
 # there is never a gap; only the top arc is ever visible.
@@ -81,15 +81,18 @@ def landing(request):
 LEGAL_UPDATED = _('September 2026')
 
 
-def privacy(request):
-    return render(request, 'home/privacy.html', {
-        'page_title': _('Privacy Policy'),
+def _legal_page(request, page, title):
+    # Each language has its own copy of the policy text (privacy_pcm.html and so
+    # on); a language without one falls back to the English page.
+    return render(request, [f'home/{page}_{get_language()}.html', f'home/{page}.html'], {
+        'page_title': title,
         'last_updated': LEGAL_UPDATED,
     })
+
+
+def privacy(request):
+    return _legal_page(request, 'privacy', _('Privacy Policy'))
 
 
 def terms(request):
-    return render(request, 'home/terms.html', {
-        'page_title': _('Terms of Use'),
-        'last_updated': LEGAL_UPDATED,
-    })
+    return _legal_page(request, 'terms', _('Terms of Use'))
