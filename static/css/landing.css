@@ -70,6 +70,44 @@ h1, h2, h3, p { margin: 0; }
 }
 .btn--primary:hover { background: #255FD6; box-shadow: 0 10px 24px rgba(47,111,237,.32); }
 
+/* A quick pop every 1.5s -- a swell to 1.14, a dip and a settle, with a ring
+   spreading out of the edge -- strong enough to read over the hero label's
+   own continuous pulse. Hovering drops it so the button's own hover lift takes over;
+   reduced-motion users never see it (see the prefers-reduced-motion block at
+   the end of this file). */
+.btn--pop { position: relative; animation: btn-pop 1.5s ease-out infinite; }
+.btn--pop::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  animation: btn-pop-ring 1.5s ease-out infinite;
+  pointer-events: none;
+}
+.btn--pop:hover, .btn--pop:focus-visible { animation: none; }
+.btn--pop:hover::after, .btn--pop:focus-visible::after { animation: none; }
+
+@keyframes btn-pop {
+  0%, 72%, 100% { transform: scale(1); }
+  16%           { transform: scale(1.14); }
+  36%           { transform: scale(.95); }
+  54%           { transform: scale(1.05); }
+}
+@keyframes btn-pop-ring {
+  0%       { box-shadow: 0 0 0 0 rgba(47,111,237,.75); }
+  70%,100% { box-shadow: 0 0 0 22px rgba(47,111,237,0); }
+}
+
+/* The hero's call to action keeps its label gently breathing -- a continuous
+   scale up and back -- so the eye is drawn to it without the button itself
+   moving and shifting the layout. Reduced-motion users never see it (see the
+   prefers-reduced-motion block at the end of this file). */
+.btn__label { display: inline-block; will-change: transform; }
+.btn--pulse .btn__label { animation: btn-label-pulse 1.8s ease-in-out infinite; }
+
+@keyframes btn-label-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+}
+
 /* ---------- display headings ---------- */
 /* Figma stores these in sentence case and applies Title Case as a text-case
    style, in both the English and Pidgin frames. Doing the same here keeps the
@@ -329,8 +367,12 @@ h1, h2, h3, p { margin: 0; }
   opacity: 1;
   transform: none;
   filter: none;
-  clip-path: inset(0 0 0 0);
 }
+/* Only the heading wipe needs a clip, and only for its own animation. Left on
+   every revealed block, inset(0) crops anything drawn past the block's edge --
+   it was cutting the waitlist buttons' pop and ring off at the hero text's
+   bottom-left corner. */
+.js [data-reveal="mask"].is-visible { clip-path: inset(0 0 0 0); }
 
 /* ---------- why join ---------- */
 .why { padding-block: 56px 40px; }
