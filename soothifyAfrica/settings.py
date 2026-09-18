@@ -149,10 +149,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Where every "Join waitlist" button points. A Google Form for now, so signups
-# land in the linked response sheet rather than anywhere in this project.
-WAITLIST_URL = 'https://forms.gle/u79QuAxDhqmhvFwr8'
-
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 

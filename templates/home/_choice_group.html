@@ -1,0 +1,22 @@
+{% load brand %}
+{% comment %}
+  One "check all that apply" group from the waitlist design: a question, a
+  list of checkboxes, and an "Other (please specify)" line on the last row.
+  Expects: field (the multiple-choice field), other (its free-text field),
+  question, hint.
+{% endcomment %}
+<fieldset class="wl-group" data-reveal="up">
+  <legend class="wl-group__q"><span class="wl-group__title">{{ question|brandmark }}</span> <span class="wl-group__hint">{{ hint }}</span></legend>
+  <div class="wl-group__list">
+    {% for opt in field %}
+      {% if opt.data.value == "other" %}
+        <div class="wl-check wl-check--other">
+          <label class="wl-check__label">{{ opt.tag }}<span class="wl-check__box" aria-hidden="true"></span><span>{{ opt.choice_label }}</span></label>
+          {{ other }}
+        </div>
+      {% else %}
+        <label class="wl-check wl-check__label">{{ opt.tag }}<span class="wl-check__box" aria-hidden="true"></span><span>{{ opt.choice_label }}</span></label>
+      {% endif %}
+    {% endfor %}
+  </div>
+</fieldset>

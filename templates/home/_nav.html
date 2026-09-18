@@ -1,11 +1,20 @@
 {% load i18n static %}
-<nav class="nav" aria-label="{% translate "Primary" %}">
+<nav class="nav{% if closeable %} nav--closeable{% endif %}" aria-label="{% translate "Primary" %}">
   <div class="shell nav__inner">
     <a class="brand" href="{% url 'home:landing' %}" aria-label="{% translate "Soothify Africa — home" %}">
       <img class="brand__mark" src="{% static 'img/logo-mark.jpg' %}" alt="" width="51" height="51">
-      <img class="brand__word" src="{% static 'img/logo-wordmark.svg' %}" alt="Soothify" width="117" height="47">
+      <img class="brand__word" src="{% if theme == 'light' %}{% static 'img/logo-wordmark-dark.svg' %}{% else %}{% static 'img/logo-wordmark.svg' %}{% endif %}" alt="Soothify" width="117" height="47">
     </a>
 
+    {% if closeable %}
+    <!-- Here the phone menu holds only the language switcher, so its button is a
+         globe that stays a globe: an X would sit beside the page's close X. -->
+    <button class="nav__burger" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="{% translate "Change Language" %}" data-nav-toggle>
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+      </svg>
+    </button>
+    {% else %}
     <!-- Phones collapse the language switcher and CTA behind this (Figma "phone/ header") -->
     <button class="nav__burger" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="{% translate "Menu" %}" data-nav-toggle>
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -13,6 +22,7 @@
         <path class="nav__burger-close" d="M5 5l14 14M19 5L5 19"/>
       </svg>
     </button>
+    {% endif %}
 
     <div class="nav__right" id="nav-menu" data-nav-menu>
       <div class="lang" data-lang>
@@ -34,9 +44,21 @@
         </form>
       </div>
 
+      {% if not closeable %}
       <div class="nav__actions">
-        <a class="btn btn--light" href="{{ waitlist_url }}" target="_blank" rel="noopener noreferrer">{% translate "Join Waitlist" %}</a>
+        <a class="btn btn--light" href="{{ waitlist_url }}">{% translate "Join Waitlist" %}</a>
       </div>
+      {% endif %}
     </div>
+
+    {% if closeable %}
+    <!-- The waitlist pages are a step away from the site, so they close back to it
+         instead of offering the "Join Waitlist" button that leads to themselves. -->
+    <a class="nav__close" href="{% url 'home:landing' %}" aria-label="{% translate "Close and go back to the home page" %}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M6 6l12 12M18 6L6 18"/>
+      </svg>
+    </a>
+    {% endif %}
   </div>
 </nav>

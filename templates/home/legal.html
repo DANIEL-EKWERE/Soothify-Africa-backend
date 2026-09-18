@@ -18,11 +18,11 @@
       <p class="legal__lede">{% filter brandmark %}{% block legal_lede %}{% endblock %}{% endfilter %}</p>
     </header>
 
-    <div class="legal__body" data-reveal="up">
+    <div class="legal__body">
       {% filter brandmark %}{% block legal_body %}{% endblock %}{% endfilter %}
     </div>
 
-    <p class="legal__back">
+    <p class="legal__back" data-reveal="up">
       <a href="{% url 'home:landing' %}">{% translate "Back to home" %}</a>
     </p>
   </div>

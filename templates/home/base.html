@@ -21,7 +21,7 @@
 
 {% block body %}{% endblock %}
 
-{% include "home/_footer.html" %}
+{% block footer %}{% include "home/_footer.html" %}{% endblock %}
 
 <script>
   // Mark the document as JS-capable *before* first paint so [data-reveal] elements
@@ -45,13 +45,18 @@
       return;
     }
 
-    // stagger siblings so grids cascade instead of snapping in together
-    targets.forEach(function (el) {
-      var kin = el.parentElement ? Array.prototype.filter.call(
-        el.parentElement.children, function (c) { return c.hasAttribute('data-reveal'); }) : [];
-      var i = kin.indexOf(el);
-      if (i > 0) el.style.setProperty('--reveal-delay', Math.min(i, 6) * 130 + 'ms');
-    });
+    // Things that come into view together cascade (a row of three, the fields at
+    // the top of a form); anything reached on its own shows at once. Staggering by
+    // position among siblings instead would make a long list lag behind the scroll.
+    function showTogether(batch) {
+      batch.sort(function (a, b) {
+        return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+      });
+      batch.forEach(function (el, i) {
+        if (i > 0) el.style.setProperty('--reveal-delay', Math.min(i, 6) * 130 + 'ms');
+        show(el);
+      });
+    }
 
     var pending = targets.slice();
 
@@ -70,9 +75,11 @@
     }
 
     function sweep() {
+      var batch = [];
       for (var i = pending.length - 1; i >= 0; i--) {
-        if (onScreen(pending[i])) { show(pending[i]); pending.splice(i, 1); }
+        if (onScreen(pending[i])) { batch.push(pending[i]); pending.splice(i, 1); }
       }
+      showTogether(batch);
       if (!pending.length) {
         window.removeEventListener('scroll', queue);
         window.removeEventListener('resize', queue);
@@ -88,12 +95,14 @@
 
     if ('IntersectionObserver' in window) {
       var io = new IntersectionObserver(function (entries) {
+        var batch = [];
         entries.forEach(function (entry) {
           if (!entry.isIntersecting) return;
           var at = pending.indexOf(entry.target);
-          if (at > -1) { show(entry.target); pending.splice(at, 1); }
+          if (at > -1) { batch.push(entry.target); pending.splice(at, 1); }
           io.unobserve(entry.target);
         });
+        showTogether(batch);
       }, { threshold: 0.08, rootMargin: '0px 0px -4% 0px' });
       targets.forEach(function (el) { io.observe(el); });
     }

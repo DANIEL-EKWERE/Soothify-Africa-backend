@@ -1,5 +1,11 @@
-from django.shortcuts import render
-from django.utils.translation import get_language, gettext_lazy as _
+from urllib.parse import quote, urlencode
+
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.translation import get_language, gettext, gettext_lazy as _
+
+from .forms import WaitlistForm
+from .models import REFERRAL_BOOST, WaitlistSignup
 
 # One turn of the wheel. The five designed cards repeat around the full circle so
 # there is never a gap; only the top arc is ever visible.
@@ -96,3 +102,51 @@ def privacy(request):
 
 def terms(request):
     return _legal_page(request, 'terms', _('Terms of Use'))
+
+
+# --- waitlist ---------------------------------------------------------------
+
+_SESSION_SIGNUP = 'waitlist_signup'   # the visitor's own row, for the success page
+_SESSION_REF = 'waitlist_ref'         # whose link brought them here
+
+
+def waitlist(request):
+    # Remember a friend's link for the whole visit, so the referral still
+    # counts if they look around before signing up.
+    ref = request.GET.get('ref', '').strip()
+    if ref:
+        request.session[_SESSION_REF] = ref[:12]
+
+    if request.method == 'POST':
+        form = WaitlistForm(request.POST)
+        if form.is_valid():
+            signup = form.save(language=get_language(),
+                               referral_code=request.session.get(_SESSION_REF))
+            request.session[_SESSION_SIGNUP] = signup.pk
+            return redirect('home:waitlist_done')
+    else:
+        form = WaitlistForm()
+    return render(request, 'home/waitlist.html', {'form': form})
+
+
+def waitlist_done(request):
+    signup = WaitlistSignup.objects.filter(pk=request.session.get(_SESSION_SIGNUP)).first()
+    if signup is None:
+        return redirect('home:waitlist')
+
+    share_url = f"{request.build_absolute_uri(reverse('home:waitlist'))}?ref={signup.referral_code}"
+    message = gettext('I just joined the Soothify waitlist, a calmer way to find balance. Join me:')
+    return render(request, 'home/waitlist_done.html', {
+        'signup': signup,
+        'position': signup.position(),
+        'boost': REFERRAL_BOOST,
+        'share_url': share_url,
+        'share_display': share_url.split('://', 1)[-1],
+        'share_x': 'https://x.com/intent/post?' + urlencode({'text': message, 'url': share_url}),
+        'share_whatsapp': 'https://wa.me/?text=' + quote(f'{message} {share_url}'),
+        'share_gmail': 'https://mail.google.com/mail/?' + urlencode({
+            'view': 'cm', 'fs': '1',
+            'su': gettext('Join me on the Soothify waitlist'),
+            'body': f'{message} {share_url}',
+        }),
+    })

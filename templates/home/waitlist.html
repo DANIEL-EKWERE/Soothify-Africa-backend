@@ -1,0 +1,57 @@
+{% extends "home/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% translate "Join Waitlist" %} — Soothify Africa{% endblock %}
+{% block description %}{% translate "Join the Soothify waitlist for early access to therapy, guided meditation, Pilates and wellness content in Pidgin and English." %}{% endblock %}
+
+{% block header %}
+  <header class="page-head page-head--light">{% include "home/_nav.html" with theme="light" closeable=True %}</header>
+{% endblock %}
+
+{% block body %}
+<main class="wl">
+  <div class="wl__col">
+    <h1 class="wl__title" data-reveal="mask">{% translate "Join Waitlist" %}</h1>
+
+    <form class="wl-form" method="post" action="{{ request.path }}">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}<div class="wl-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+
+      <div class="wl-fields">
+        {% for field in form %}{% if field.name == "name" or field.name == "email" or field.name == "phone" %}
+          <div class="wl-field{% if field.errors %} is-invalid{% endif %}" data-reveal="up">
+            <label class="wl-field__label" for="{{ field.id_for_label }}">
+              {% if field.name == "name" %}{% translate "Name" %}{% elif field.name == "email" %}{% translate "Email" %}{% else %}{% translate "Phone" %}{% endif %}
+              {% if field.name == "phone" %}<span class="wl-field__opt">{% translate "(optional)" %}</span>{% endif %}
+            </label>
+            {{ field }}
+            {% for error in field.errors %}<p class="wl-field__error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}{% endfor %}
+      </div>
+
+      <div class="wl-groups">
+        {% translate "What brings you to Soothify today?" as q1 %}
+        {% translate "(Check all that apply)" as hint %}
+        {% include "home/_choice_group.html" with field=form.goals other=form.goals_other question=q1 hint=hint %}
+
+        {% translate "Which experiences are you most excited to try?" as q2 %}
+        {% include "home/_choice_group.html" with field=form.interests other=form.interests_other question=q2 hint=hint %}
+
+        <div class="wl-field" data-reveal="up">
+          <label class="wl-field__label wl-field__label--q" for="{{ form.source.id_for_label }}">{% translate "How did you hear about us?" %}</label>
+          <div class="wl-select">{{ form.source }}</div>
+        </div>
+      </div>
+
+      <div class="wl-submit" data-reveal="up">
+        <label class="wl-check wl-check__label wl-optin">{{ form.wants_updates }}<span class="wl-check__box" aria-hidden="true"></span><span>{% translate "Send me early access invites, wellness tips, and exclusive launch updates." %}</span></label>
+        <button class="btn btn--primary wl-submit__btn" type="submit">{% translate "Secure My Early Access" %}</button>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}
+
+{% block footer %}{% include "home/_footer_light.html" %}{% endblock %}

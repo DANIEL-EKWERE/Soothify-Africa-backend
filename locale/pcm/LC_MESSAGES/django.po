@@ -262,3 +262,9 @@ msgstr "Wetin Soothify Africa dey collect, and how we dey handle am."
 
 msgid "September 2026"
 msgstr "September 2026"
+
+msgid "What brings you to Soothify today?"
+msgstr "Wetin bring you come Soothify today?"
+
+msgid "Which experiences are you most excited to try?"
+msgstr "Which of the experiences you dey happy to try?"

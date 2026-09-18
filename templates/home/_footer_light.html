@@ -1,0 +1,27 @@
+{% load i18n static brand %}
+{% comment %}
+  The plain footer used on the waitlist pages (Figma "Footers"): no photo and
+  no call to action, since the page itself is the call to action.
+{% endcomment %}
+<footer class="foot">
+  <div class="foot__inner">
+    <div class="foot__top" data-reveal="up">
+      <div class="social social--dark">
+        <span class="social__label">{% translate "Follow Us" %}</span>
+        <div class="social__icons">
+          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on Facebook" %}"><img src="{% static 'img/icon-facebook.svg' %}" alt="" width="24" height="24"></a>
+          <a href="https://x.com/soothifyafrica" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on X" %}"><img src="{% static 'img/icon-x.svg' %}" alt="" width="24" height="24"></a>
+          <a href="https://instagram.com/soothifyafrica" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on Instagram" %}"><img src="{% static 'img/icon-instagram.svg' %}" alt="" width="24" height="24"></a>
+          <a href="https://www.linkedin.com/company/soothify-africa/" target="_blank" rel="noopener noreferrer" aria-label="{% translate "Soothify Africa on LinkedIn" %}"><img src="{% static 'img/icon-linkedin.svg' %}" alt="" width="24" height="24"></a>
+        </div>
+      </div>
+    </div>
+    <div class="foot__bottom" data-reveal="up">
+      <nav class="foot__legal" aria-label="{% translate "Legal" %}">
+        <a href="{% url 'home:privacy' %}">{% translate "Privacy Policy" %}</a>
+        <a href="{% url 'home:terms' %}">{% translate "Terms of Use" %}</a>
+      </nav>
+      <p class="foot__copy">{% now "Y" as year %}{% blocktranslate asvar copyright %}© {{ year }} . Powered by soothifyafrica. All Rights Reserved.{% endblocktranslate %}{{ copyright|brandmark }}</p>
+    </div>
+  </div>
+</footer>
