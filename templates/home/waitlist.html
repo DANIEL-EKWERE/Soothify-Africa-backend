@@ -41,7 +41,7 @@
 
         <div class="wl-field" data-reveal="up">
           <label class="wl-field__label wl-field__label--q" for="{{ form.source.id_for_label }}">{% translate "How did you hear about us?" %}</label>
-          <div class="wl-select">{{ form.source }}</div>
+          <div class="wl-select" data-select>{{ form.source }}</div>
         </div>
       </div>
 
@@ -55,3 +55,144 @@
 {% endblock %}
 
 {% block footer %}{% include "home/_footer_light.html" %}{% endblock %}
+
+{% block scripts %}
+<script>
+  // "How did you hear about us?" -- a menu of our own, so it can be styled to
+  // match the design. It opens downwards, and flips above the field when there
+  // is not enough room below, the way a browser's own dropdown does. The real
+  // field stays in the form (hidden) and keeps the value, so the page still
+  // works with JavaScript off.
+  (function () {
+    var wrap = document.querySelector('[data-select]');
+    if (!wrap) return;
+    var select = wrap.querySelector('select');
+    if (!select) return;
+
+    var options = Array.prototype.slice.call(select.options);
+    var drop = document.createElement('div');
+    drop.className = 'wl-drop';
+
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'wl-drop__btn';
+    button.id = select.id + '_button';
+    button.setAttribute('aria-haspopup', 'listbox');
+    button.setAttribute('aria-expanded', 'false');
+    button.innerHTML = '<span class="wl-drop__value"></span>' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.3 8.3a1 1 0 0 1 1.4 0L12 13.6l5.3-5.3a1 1 0 1 1 1.4 1.4l-6 6a1 1 0 0 1-1.4 0l-6-6a1 1 0 0 1 0-1.4z" fill="currentColor"/></svg>';
+
+    var list = document.createElement('ul');
+    list.className = 'wl-drop__menu';
+    list.setAttribute('role', 'listbox');
+    list.hidden = true;
+
+    var items = options.map(function (opt, i) {
+      var li = document.createElement('li');
+      li.className = 'wl-drop__opt';
+      li.setAttribute('role', 'option');
+      li.textContent = opt.textContent;
+      li.dataset.index = i;
+      li.setAttribute('aria-selected', String(opt.selected));
+      list.appendChild(li);
+      return li;
+    });
+
+    drop.appendChild(button); drop.appendChild(list);
+    wrap.appendChild(drop);
+    wrap.classList.add('wl-select--custom');
+
+    // the label points at the button now, so clicking it opens the menu
+    var label = document.querySelector('label[for="' + select.id + '"]');
+    if (label) label.htmlFor = button.id;
+
+    var field = wrap.closest('.wl-field') || wrap;   // lifted above its neighbours while open
+    var active = Math.max(select.selectedIndex, 0);
+
+    function paint() {
+      var opt = options[select.selectedIndex] || options[0];
+      button.querySelector('.wl-drop__value').textContent = opt.textContent;
+      button.classList.toggle('is-placeholder', !opt.value);
+      items.forEach(function (li, i) {
+        li.setAttribute('aria-selected', String(i === select.selectedIndex));
+        li.classList.toggle('is-active', i === active);
+      });
+    }
+
+    function place() {
+      // measure with the menu laid out below, then flip only if it would not fit
+      list.classList.remove('wl-drop__menu--up');
+      var box = button.getBoundingClientRect();
+      var needed = list.offsetHeight + 8;
+      var below = innerHeight - box.bottom;
+      if (needed > below && box.top > below) list.classList.add('wl-drop__menu--up');
+    }
+
+    function open() {
+      // While a block is still sliding in, its transform traps the menu below
+      // whatever comes after it on the page, so clicks land on that instead.
+      // Raising the whole field keeps the menu on top either way.
+      field.classList.add('is-open');
+      list.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      active = Math.max(select.selectedIndex, 0);
+      paint();
+      place();
+      items[active].scrollIntoView({ block: 'nearest' });
+    }
+    function close(focus) {
+      field.classList.remove('is-open');
+      list.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+      if (focus) button.focus();
+    }
+    function choose(i) {
+      select.selectedIndex = i;
+      active = i;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      paint();
+      close(true);
+    }
+
+    button.addEventListener('click', function () { list.hidden ? open() : close(false); });
+    // Keep focus on the button while a row is being clicked: without this the
+    // press moves focus, the focusout below closes the menu, and the row is gone
+    // before the click can land on it.
+    list.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    items.forEach(function (li, i) {
+      li.addEventListener('click', function () { choose(i); });
+      li.addEventListener('mousemove', function () { active = i; paint(); });
+    });
+
+    drop.addEventListener('keydown', function (e) {
+      var isOpen = !list.hidden;
+      if (e.key === 'Escape') { if (isOpen) { e.preventDefault(); close(true); } return; }
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        isOpen ? choose(active) : open();
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+        e.preventDefault();
+        if (!isOpen) return open();
+        if (e.key === 'Home') active = 0;
+        else if (e.key === 'End') active = items.length - 1;
+        else active = Math.min(items.length - 1, Math.max(0, active + (e.key === 'ArrowDown' ? 1 : -1)));
+        paint();
+        items[active].scrollIntoView({ block: 'nearest' });
+      }
+    });
+
+    document.addEventListener('click', function (e) { if (!drop.contains(e.target) && !list.hidden) close(false); });
+    window.addEventListener('resize', function () { if (!list.hidden) place(); });
+    window.addEventListener('scroll', function () { if (!list.hidden) place(); }, { passive: true });
+    // only when focus really moves somewhere else (tabbing away); focus going
+    // nowhere at all is what a click on a row looks like
+    drop.addEventListener('focusout', function (e) {
+      if (e.relatedTarget && !drop.contains(e.relatedTarget) && !list.hidden) close(false);
+    });
+
+    paint();
+  })();
+</script>
+{% endblock %}

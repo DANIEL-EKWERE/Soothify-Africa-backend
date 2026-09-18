@@ -268,3 +268,157 @@ msgstr "Wetin bring you come Soothify today?"
 
 msgid "Which experiences are you most excited to try?"
 msgstr "Which of the experiences you dey happy to try?"
+
+msgid ""
+"Join the Soothify waitlist for early access to therapy, guided meditation, "
+"Pilates and wellness content in Pidgin and English."
+msgstr ""
+"Join the Soothify waitlist make you get early access to therapy, guided "
+"meditation, Pilates and wellness content for Pidgin and English."
+
+msgid "Name"
+msgstr "Your name"
+
+msgid "Email"
+msgstr "Your email"
+
+msgid "Phone"
+msgstr "Your phone"
+
+msgid "(optional)"
+msgstr "(if you get am)"
+
+msgid "Enter your name"
+msgstr "Put your name"
+
+msgid "Enter your email"
+msgstr "Put your email"
+
+msgid "Enter your phone number"
+msgstr "Put your phone number"
+
+msgid "(Check all that apply)"
+msgstr "(Check all wey apply)"
+
+msgid "How did you hear about us?"
+msgstr "How you take hear about us?"
+
+msgid "Please select"
+msgstr "Abeg pick one"
+
+msgid ""
+"Send me early access invites, wellness tips, and exclusive launch updates."
+msgstr ""
+"Send me early access invite, wellness tips, and special launch updates."
+
+msgid "Secure My Early Access"
+msgstr "Hold My Early Access"
+
+msgid "Other reason"
+msgstr "Another reason"
+
+msgid "Other experience"
+msgstr "Another experience"
+
+msgid "Unwinding & Reducing Daily Stress"
+msgstr "To Rest & Reduce Daily Stress"
+
+msgid "Falling Asleep Easier & Deep Rest"
+msgstr "To Sleep Easy & Rest Well"
+
+msgid "Building Consistent Wellness Routines"
+msgstr "To Build Wellness Routine Wey Go Last"
+
+msgid "Finding Inner Calm & Mindfulness"
+msgstr "To Find Inner Calm & Mindfulness"
+
+msgid "Feeling More Calm"
+msgstr "To Feel More Calm"
+
+msgid "Other (Please Specify)"
+msgstr "Other (Abeg Talk Am)"
+
+msgid "Guided Meditation & Breathwork"
+msgstr "Guided Meditation & Breathing"
+
+msgid "Sleep Sounds & Soundscapes"
+msgstr "Sleep Sounds & Soft Music"
+
+msgid "Gentle Yoga & Movement"
+msgstr "Soft Yoga & Body Movement"
+
+msgid "Wellness & Mindfulness Courses"
+msgstr "Wellness & Mindfulness Classes"
+
+msgid "Community Support & Circles"
+msgstr "Community Support & Circles"
+
+msgid "Social Media"
+msgstr "Social Media"
+
+msgid "Friend/Family"
+msgstr "Friend/Family"
+
+msgid "Online Search"
+msgstr "Online Search"
+
+msgid "Ads"
+msgstr "Ads"
+
+msgid "Other"
+msgstr "Other"
+
+msgid "You're on the list!"
+msgstr "You don enter the list!"
+
+msgid "You're on the Soothify waitlist."
+msgstr "You don dey the Soothify waitlist."
+
+msgid ""
+"We’re building Soothify to help you find your daily calm. We’ll email you as"
+" soon as your early access pass is ready"
+msgstr ""
+"We dey build Soothify to help you find your daily calm. We go email you once"
+" your early access pass ready"
+
+msgid "Your spot in line"
+msgstr "Your place for line"
+
+msgid "Want to skip the line?"
+msgstr "You wan jump the line?"
+
+msgid ""
+"Share your unique link with friends. For every friend who joins, you'll move"
+" up %(boost)s spots!"
+msgstr ""
+"Share your own link give your padi dem. Any friend wey join, you go move up "
+"%(boost)s spots!"
+
+msgid "Your referral link"
+msgstr "Your referral link"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "Copied"
+msgstr "Don copy"
+
+msgid "Share on X"
+msgstr "Share for X"
+
+msgid "Share on WhatsApp"
+msgstr "Share for WhatsApp"
+
+msgid "Share by Gmail"
+msgstr "Share with Gmail"
+
+msgid ""
+"I just joined the Soothify waitlist, a calmer way to find balance. Join me:"
+msgstr ""
+"I just join the Soothify waitlist, better way to find balance. Join me:"
+
+msgid "Join me on the Soothify waitlist"
+msgstr "Join me for the Soothify waitlist"
+
+msgid "Close and go back to the home page"
+msgstr "Close am, go back to home page"
