@@ -11,45 +11,24 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Hard-coded production values for a cPanel deployment.
+SECRET_KEY = "soothify-africa-production-secret-key-2026-strong-enough-for-live-site"
+DEBUG = False
 
-def env_flag(name, default=False):
-    """Read a boolean-ish environment variable."""
-    return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+ALLOWED_HOSTS = [
+    "soothifyafrica.com.ng",
+    "www.soothifyafrica.com.ng",
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "testserver",
+]
 
-
-def env_list(name):
-    return [v.strip() for v in os.environ.get(name, "").split(",") if v.strip()]
-
-
-# Render sets RENDER=true in every service, which is what flips the defaults
-# below. Nothing else in the file needs to know where it is running.
-ON_RENDER = env_flag("RENDER")
-
-DEV_SECRET_KEY = "django-insecure-$r$x!#-6g$u4e7#g1zp)168oa15*=pvh74$t&hubu(eb=pkome"
-SECRET_KEY = 'django-insecure-$r$x!#-6g$u4e7#g1zp)168oa15*=pvh74$t&hubu(eb=pkome' #os.environ.get("SECRET_KEY", DEV_SECRET_KEY)
-"""
-if ON_RENDER and SECRET_KEY == DEV_SECRET_KEY:
-    # Fail the deploy loudly rather than serve production with the throwaway key.
-    raise RuntimeError(
-        "SECRET_KEY is unset on Render. Add it as an environment variable "
-        "(render.yaml generates one automatically)."
-    )
-    """
-
-DEBUG = env_flag("DJANGO_DEBUG", default=not ON_RENDER)
-
-# Render publishes the service's own hostname; extra domains go in ALLOWED_HOSTS.
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
-if os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
-    ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
-if DEBUG:
-    ALLOWED_HOSTS += ["localhost", "127.0.0.1", "[::1]", "testserver"]
-
-# Django needs the scheme here, and only for hosts that actually serve HTTPS.
 CSRF_TRUSTED_ORIGINS = [
-    f"https://{host}"
-    for host in ALLOWED_HOSTS
-    if not host.startswith(("localhost", "127.", "[", "testserver"))
+    "https://soothifyafrica.com",
+    "https://www.soothifyafrica.com",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 
@@ -105,31 +84,14 @@ WSGI_APPLICATION = 'soothifyAfrica.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-# Postgres when DATABASE_URL is present (Render sets it when a database is
-# attached), otherwise the local SQLite file.
-#
-# WARNING: Render's filesystem is ephemeral. On SQLite, anything written at
-# runtime — admin users, sessions — is wiped on every deploy and restart.
-# Attach a Postgres instance before storing anything you care about.
-if os.environ.get("DATABASE_URL"):
-    import dj_database_url
-
-    DATABASES = {
-        "default": dj_database_url.parse(
-            os.environ["DATABASE_URL"],
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
+# Using SQLite for this cPanel deployment so no runtime environment variables
+# are required. The database file lives in the project directory.
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+}
 
 
 # Password validation
@@ -175,10 +137,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-# collectstatic writes here; WhiteNoise serves from it. Regenerated every build,
-# so it is gitignored.
+# collectstatic writes here; WhiteNoise serves from it.
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STORAGES = {
