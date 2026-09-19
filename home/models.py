@@ -20,20 +20,20 @@ class WaitlistSignup(models.Model):
     # The stored values are short and stable; the labels are what the form and
     # the admin show, so relabelling later does not rewrite collected rows.
     class Goal(models.TextChoices):
-        STRESS = 'stress', _('Unwinding & Reducing Daily Stress')
-        SLEEP = 'sleep', _('Falling Asleep Easier & Deep Rest')
-        ROUTINES = 'routines', _('Building Consistent Wellness Routines')
-        MINDFULNESS = 'mindfulness', _('Finding Inner Calm & Mindfulness')
-        CALM = 'calm', _('Feeling More Calm')
-        OTHER = 'other', _('Other (Please Specify)')
+        STRESS = 'stress', _('Unwinding & reducing daily stress')
+        SLEEP = 'sleep', _('Falling asleep easier & deep rest')
+        ROUTINES = 'routines', _('Building consistent wellness routines')
+        MINDFULNESS = 'mindfulness', _('Finding inner calm & mindfulness')
+        CALM = 'calm', _('Feeling more calm')
+        OTHER = 'other', _('Other (please specify)')
 
     class Interest(models.TextChoices):
-        MEDITATION = 'meditation', _('Guided Meditation & Breathwork')
-        SLEEP_SOUNDS = 'sleep_sounds', _('Sleep Sounds & Soundscapes')
-        YOGA = 'yoga', _('Gentle Yoga & Movement')
-        COURSES = 'courses', _('Wellness & Mindfulness Courses')
-        COMMUNITY = 'community', _('Community Support & Circles')
-        OTHER = 'other', _('Other (Please Specify)')
+        MEDITATION = 'meditation', _('Guided meditation & breathwork')
+        SLEEP_SOUNDS = 'sleep_sounds', _('Sleep sounds & soundscapes')
+        YOGA = 'yoga', _('Gentle yoga & movement')
+        COURSES = 'courses', _('Wellness & mindfulness courses')
+        COMMUNITY = 'community', _('Community support & circles')
+        OTHER = 'other', _('Other (please specify)')
 
     class Source(models.TextChoices):
         SOCIAL = 'social', _('Social Media')

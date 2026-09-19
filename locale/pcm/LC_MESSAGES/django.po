@@ -320,38 +320,38 @@ msgstr "Another reason"
 msgid "Other experience"
 msgstr "Another experience"
 
-msgid "Unwinding & Reducing Daily Stress"
-msgstr "To Rest & Reduce Daily Stress"
+msgid "Unwinding & reducing daily stress"
+msgstr "To rest & reduce daily stress"
 
-msgid "Falling Asleep Easier & Deep Rest"
-msgstr "To Sleep Easy & Rest Well"
+msgid "Falling asleep easier & deep rest"
+msgstr "To sleep easy & rest well"
 
-msgid "Building Consistent Wellness Routines"
-msgstr "To Build Wellness Routine Wey Go Last"
+msgid "Building consistent wellness routines"
+msgstr "To build wellness routine wey go last"
 
-msgid "Finding Inner Calm & Mindfulness"
-msgstr "To Find Inner Calm & Mindfulness"
+msgid "Finding inner calm & mindfulness"
+msgstr "To find inner calm & mindfulness"
 
-msgid "Feeling More Calm"
-msgstr "To Feel More Calm"
+msgid "Feeling more calm"
+msgstr "To feel more calm"
 
-msgid "Other (Please Specify)"
-msgstr "Other (Abeg Talk Am)"
+msgid "Other (please specify)"
+msgstr "Other (abeg talk am)"
 
-msgid "Guided Meditation & Breathwork"
-msgstr "Guided Meditation & Breathing"
+msgid "Guided meditation & breathwork"
+msgstr "Guided meditation & breathing"
 
-msgid "Sleep Sounds & Soundscapes"
-msgstr "Sleep Sounds & Soft Music"
+msgid "Sleep sounds & soundscapes"
+msgstr "Sleep sounds & soft music"
 
-msgid "Gentle Yoga & Movement"
-msgstr "Soft Yoga & Body Movement"
+msgid "Gentle yoga & movement"
+msgstr "Soft yoga & body movement"
 
-msgid "Wellness & Mindfulness Courses"
-msgstr "Wellness & Mindfulness Classes"
+msgid "Wellness & mindfulness courses"
+msgstr "Wellness & mindfulness classes"
 
-msgid "Community Support & Circles"
-msgstr "Community Support & Circles"
+msgid "Community support & circles"
+msgstr "Community support & circles"
 
 msgid "Social Media"
 msgstr "Social Media"
