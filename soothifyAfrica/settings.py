@@ -139,8 +139,18 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-# collectstatic writes here; WhiteNoise serves from it.
-STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Where collectstatic writes. On the cPanel server that is the domain's document
+# root, so LiteSpeed serves /static/ itself: it finds the file on disk before the
+# request reaches Django, and it answers the byte-range requests browsers use
+# for video (the Python app returned a 500 for those, so the hero video never
+# played, and randomly 404'd other files). Elsewhere -- your laptop -- that
+# folder does not exist, so files go to staticfiles/ and WhiteNoise serves them.
+# If the domain's document root is not public_html, change this one path.
+DOCUMENT_ROOT_STATIC = Path("/home/wdivczxg/public_html/static")
+STATIC_ROOT = (
+    DOCUMENT_ROOT_STATIC if DOCUMENT_ROOT_STATIC.parent.is_dir() else BASE_DIR / "staticfiles"
+)
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
