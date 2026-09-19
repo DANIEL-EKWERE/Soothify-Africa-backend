@@ -11,7 +11,7 @@
 {% block body %}
 <main class="wl wl--done">
   <div class="wl-done">
-    <svg class="wl-done__check" viewBox="0 0 24 24" aria-hidden="true" data-confetti-origin="{{ signup.referral_code }}">
+    <svg class="wl-done__check" viewBox="0 0 24 24" aria-hidden="true" data-confetti-origin>
       <circle cx="12" cy="12" r="12" fill="currentColor"/>
       <path d="M7 12.4l3.2 3.2L17.2 8.6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
@@ -66,15 +66,13 @@
 {% block scripts %}
 <script>
   // Confetti: one burst out of the tick as it pops in, then a volley from both
-  // sides. Plain canvas, no library. Fires once per signup per browser session
-  // (a refresh does not replay it) and never for reduced-motion visitors.
+  // sides, every time this page opens. Plain canvas, no library. Skipped for
+  // visitors whose device asks for reduced motion.
   (function () {
     var origin = document.querySelector('[data-confetti-origin]');
     if (!origin || !window.requestAnimationFrame) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    var key = 'soothify-confetti-' + origin.getAttribute('data-confetti-origin');
-    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
 
     var COLORS = ['#2F6FED', '#619BCA', '#F09D39', '#EB5017', '#FFC940', '#7FB3FF'];
     var canvas = document.createElement('canvas');

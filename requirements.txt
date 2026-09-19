@@ -1,13 +1,59 @@
-# Runtime — pinned to what is installed locally so Render builds reproducibly.
-Django==6.1.1
-asgiref==3.12.1
-sqlparse==0.6.0
+# # Runtime — pinned to what is installed locally so Render builds reproducibly.
+# Django==6.1.1
+# asgiref==3.12.1
+# sqlparse==0.6.0
 
-# Production stack
-gunicorn==26.2.0         # WSGI server Render runs
-whitenoise==6.12.0       # serves collected static files from the app itself
-dj-database-url==3.1.2   # turns Render's DATABASE_URL into Django's DATABASES
+# # Production stack
+# gunicorn==26.2.0         # WSGI server Render runs
+# whitenoise==6.12.0       # serves collected static files from the app itself
+# dj-database-url==3.1.2   # turns Render's DATABASE_URL into Django's DATABASES
 
-# PostgreSQL driver. Unused while DATABASE_URL is unset (the app falls back to
-# SQLite), but present so attaching a Render database needs no code change.
-psycopg[binary]>=3.2
+# # PostgreSQL driver. Unused while DATABASE_URL is unset (the app falls back to
+# # SQLite), but present so attaching a Render database needs no code change.
+# psycopg[binary]>=3.2
+
+
+asgiref==3.8.1
+certifi==2024.8.30
+charset-normalizer==3.4.0
+cryptomus==1.1
+Django==4.2
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+django-filter==24.3
+django-rest-passwordreset==1.5.0
+fcm-django==2.2.1
+firebase-admin==6.6.0
+google-api-core==2.24.0
+google-api-python-client==2.155.0
+google-auth==2.37.0
+google-auth-httplib2==0.2.0
+google-cloud-core==2.4.1
+google-cloud-firestore==2.19.0
+google-cloud-storage==2.19.0
+django-countries==7.6.1
+django-crispy-forms==1.11.2
+django-filter==24.3
+django-htmlmin==0.11.0
+django-js-asset==1.2.2
+django-mathfilters==1.0.0
+django-mptt==0.17.0
+django-nested-admin==3.3.3
+google-crc32c==1.6.0
+google-resumable-media==2.7.2
+googleapis-common-protos==1.66.0
+grpcio==1.68.1
+grpcio-status==1.68.1
+gunicorn==23.0.0
+idna==3.10
+packaging==24.1
+requests==2.32.3
+sqlparse==0.5.2
+urllib3==2.2.3
+pillow==11.0.0
+psycopg2-binary==2.9.10
+wheel==0.44.0
+whitenoise==6.8.2
+
+

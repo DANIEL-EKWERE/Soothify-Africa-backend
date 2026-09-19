@@ -1,4 +1,16 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
+
+# The deployed settings run with DEBUG off, which redirects http to https and
+# serves static files from a collectstatic manifest. Both are right for the
+# live site but get in the way of the test client, which speaks plain http and
+# runs without collectstatic -- so the tests switch just those two off.
+PLAIN_TEST_SETTINGS = {
+    'SECURE_SSL_REDIRECT': False,
+    'STORAGES': {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+}
 from django.urls import reverse
 
 from home.forms import WaitlistForm
@@ -15,6 +27,7 @@ def signup(**overrides):
     return form.save()
 
 
+@override_settings(**PLAIN_TEST_SETTINGS)
 class WaitlistFormTests(TestCase):
     def test_saves_every_answer(self):
         row = signup()
@@ -45,6 +58,7 @@ class WaitlistFormTests(TestCase):
         self.assertEqual(again.referral_code, first.referral_code)
 
 
+@override_settings(**PLAIN_TEST_SETTINGS)
 class PlaceInLineTests(TestCase):
     def test_referrals_move_you_up(self):
         people = [signup(email=f'p{i}@x.com') for i in range(30)]
@@ -68,6 +82,7 @@ class PlaceInLineTests(TestCase):
         self.assertIsNone(WaitlistSignup.objects.get(email='me@x.com').referred_by)
 
 
+@override_settings(**PLAIN_TEST_SETTINGS)
 class WaitlistPageTests(TestCase):
     def test_form_then_success_page(self):
         self.assertEqual(self.client.get(reverse('home:waitlist')).status_code, 200)

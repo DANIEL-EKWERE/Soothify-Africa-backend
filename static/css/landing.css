@@ -531,6 +531,13 @@ p {
   mask-image: linear-gradient(to bottom, #000 var(--fade-from), rgba(0, 0, 0, 0) 100%);
 }
 
+/* Hovering the band pauses the carousel (see the script in landing.html), so
+   the pointer turns into a small pause badge to say so. 28px with the hotspot
+   in the middle; browsers that cannot show it fall back to the normal arrow. */
+.wheel {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='13' fill='%23263238' fill-opacity='.82' stroke='%23fff' stroke-width='1.5'/%3E%3Crect x='9.5' y='8.5' width='3' height='11' rx='1' fill='%23fff'/%3E%3Crect x='15.5' y='8.5' width='3' height='11' rx='1' fill='%23fff'/%3E%3C/svg%3E") 14 14, default;
+}
+
 .wheel__hub {
   position: absolute;
   left: 50%;
