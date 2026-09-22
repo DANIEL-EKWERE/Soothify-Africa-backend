@@ -1,0 +1,23 @@
+{% autoescape off %}Hi {{ first_name }},
+
+I wanted to personally reach out and say a huge thank you for trusting us and joining our early access list.
+
+Building Soothify has been a true labor of love, and knowing you're stepping into this space with us means the world. We're building this to be a genuine sanctuary, a quiet corner of your digital life designed to help you truly unwind, reset, and bring more calm into your daily routine.
+
+Your spot in line right now is #{{ position }}.
+
+As we put the final touches on everything behind the scenes, I'll be dropping into your inbox occasionally to share a peek behind the curtain. When your specific batch opens up, your exclusive invite code will land right here.
+
+Want to skip the wait?
+
+You don't have to wait your turn if you want to jump ahead. If you have friends or loved ones who could use a little more peace in their day, you can share your unique link below. Every friend who joins using your link will automatically bump you closer to the front of the line:
+
+{{ share_url }}
+
+If you ever want to reply or share what you're hoping to see in the app, my inbox is always open (though this specific email comes from our automated setup, our support team at {{ support_email }} reads every single message!).
+
+With so much calm,
+Rita Peter
+Founder, Soothify
+{{ site_url }}
+{% endautoescape %}

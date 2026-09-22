@@ -4,6 +4,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import get_language, gettext, gettext_lazy as _
 
+from .emails import send_welcome_email
 from .forms import WaitlistForm
 from .models import REFERRAL_BOOST, WaitlistSignup
 
@@ -123,6 +124,10 @@ def waitlist(request):
             signup = form.save(language=get_language(),
                                referral_code=request.session.get(_SESSION_REF))
             request.session[_SESSION_SIGNUP] = signup.pk
+            # Only for a brand-new signup: someone editing their answers should
+            # not be welcomed twice.
+            if getattr(signup, 'was_created', False):
+                send_welcome_email(signup, request)
             return redirect('home:waitlist_done')
     else:
         form = WaitlistForm()

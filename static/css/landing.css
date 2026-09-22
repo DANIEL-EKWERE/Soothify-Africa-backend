@@ -239,10 +239,11 @@ p {
 /* Figma stores these in sentence case and applies Title Case as a text-case
    style, in both the English and Pidgin frames. Doing the same here keeps the
    translation strings as plain sentences. */
+/* The footer headline used to be Title Case; the updated design sets it in
+   sentence case, so it is no longer in this list. */
 .hero__title,
 .section__title,
 .cta__title,
-.footer__title,
 .plate h3 {
   text-transform: capitalize;
 }
@@ -491,6 +492,12 @@ p {
   margin-inline: auto;
 }
 
+/* "Life moves fast": 600px of text lets the lede break after "...at home."
+   (589px at 20px), so it sets on two lines instead of three */
+.section__head--wide {
+  max-width: calc(600px + 2 * var(--gutter));
+}
+
 .section__title {
   font-weight: 700;
   font-size: 36px;
@@ -502,6 +509,9 @@ p {
   font-size: 20px;
   line-height: 24px;
   margin-top: 24px;
+  /* font-weight: 400px; */
+  opacity: .72;
+  /* color */
 }
 
 /* ---------- the card fan ---------- */
@@ -944,9 +954,10 @@ p {
 }
 
 .legal__title {
+  /* the design's page-title token, as on the waitlist form */
   font-weight: 700;
-  font-size: 44px;
-  line-height: 53px;
+  font-size: 64px;
+  line-height: 77px;
   color: var(--c-ink);
   margin-top: 16px;
 }
@@ -972,15 +983,16 @@ p {
 }
 
 .legal__section h2 {
+  /* the design's section-heading token, as on the success screen */
   font-weight: 700;
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 32px;
   color: var(--c-ink);
 }
 
 .legal__section p {
   font-size: 18px;
-  line-height: 29px;
+  line-height: 28px;
   color: var(--c-ink);
   opacity: .82;
   margin-top: 12px;
@@ -1116,11 +1128,15 @@ p {
   margin-top: 48px;
 }
 
+/* Sits at the bottom of the band, just above the legal links, rather than a
+   fixed distance from the top -- so it stays put whether or not the footer
+   carries the waitlist line and button. */
 .social {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-top: 291px;
+  align-self: flex-end;
+  margin-bottom: 48px;
 }
 
 .social__label {
@@ -1316,7 +1332,8 @@ p {
 /* text fields */
 .wl-fields {
   display: grid;
-  gap: 40px;
+  /* the updated design spaces the fields 58px apart (140px label-to-label) */
+  gap: 58px;
 }
 
 .wl-field__label {
@@ -1377,7 +1394,7 @@ p {
 /* "check all that apply" groups and the dropdown */
 .wl-groups {
   display: grid;
-  gap: 64px;
+  gap: 72px;
   margin-top: 56px;
 }
 
@@ -1391,7 +1408,7 @@ p {
 .wl-group__q,
 .wl-field__label--q {
   padding: 0;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 18px;
   line-height: 22px;
   color: var(--wl-ink);
@@ -1400,6 +1417,12 @@ p {
 
 .wl-group__hint {
   font-weight: 400;
+}
+
+/* "(Check all that apply)" and "(please specify)" sit back from the text they follow */
+.wl-group__hint,
+.wl-check__hint {
+  opacity: .56;
 }
 
 .wl-field__label--q {
@@ -1959,8 +1982,9 @@ p {
   }
 
   .wl-groups {
-    gap: 32px;
-    margin-top: 32px;
+    /* 3x the 16px between options, so each question reads as its own block */
+    gap: 48px;
+    margin-top: 40px;
   }
 
   .wl-group__q,
@@ -2112,7 +2136,9 @@ p {
   }
 
   .social {
+    align-self: auto;
     margin-top: 48px;
+    margin-bottom: 0;
     order: 2;
   }
 
@@ -2368,13 +2394,13 @@ p {
   }
 
   .legal__title {
-    font-size: 30px;
-    line-height: 38px;
+    font-size: 28px;
+    line-height: 34px;
   }
 
   .legal__lede {
-    font-size: 17px;
-    line-height: 26px;
+    font-size: 16px;
+    line-height: 24px;
   }
 
   .legal__body {
@@ -2383,7 +2409,7 @@ p {
   }
 
   .legal__section h2 {
-    font-size: 19px;
+    font-size: 20px;
     line-height: 26px;
   }
 

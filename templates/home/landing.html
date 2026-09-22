@@ -17,7 +17,7 @@
   {% include "home/_nav.html" %}
 
   <div class="shell hero__body">
-    <h1 class="hero__title" data-reveal="mask">{% blocktranslate %}Find Your<br>Inner Calm{% endblocktranslate %}</h1>
+    <h1 class="hero__title" data-reveal="mask">{% blocktranslate %}Find Your <br>Inner Calm{% endblocktranslate %}</h1>
     <div class="hero__aside" data-reveal="right">
       <p>{% translate "Welcome to Soothify! Your space to breathe, reset, and take care of yourself is on the way." as welcome %}{{ welcome|brandmark }}</p>
       <a class="btn btn--primary btn--pulse btn--pop" href="{{ waitlist_url }}"><span class="btn__label">{% translate "Join waitlist" %}</span></a>
@@ -30,7 +30,7 @@
 <main>
   <!-- ============ WHAT WE'RE BUILDING ============ -->
   <section class="section" aria-labelledby="build-title">
-    <div class="shell section__head" data-reveal="mask">
+    <div class="shell section__head section__head--wide" data-reveal="mask">
       <h2 class="section__title" id="build-title" style="color: var(--c-ink-900)">{% translate "Life moves fast" %}</h2>
       <p class="section__lede">{% translate "We are building a simpler way to find balance, right here at home. Join the waitlist to get early access when we launch" %}</p>
     </div>
@@ -64,15 +64,15 @@
       <div class="why__grid">
         <div class="why__item" data-reveal="up">
           <h3>{% translate "Pidgin & English" %}</h3>
-          <p>{% translate "We want everyone to feel included. Switch seamlessly between Pidgin and English so you can connect in the language that feels most natural to you." %}</p>
+          <p style="opacity: 0.72;">{% translate "We want everyone to feel included. Switch seamlessly between Pidgin and English so you can connect in the language that feels most natural to you." %}</p>
         </div>
         <div class="why__item" data-reveal="up">
           <h3>{% translate "Made for Our Reality" %}</h3>
-          <p>{% translate "We understand the unique rhythm of life here. Our content and support fit your actual culture and lifestyle." %}</p>
+          <p style="opacity: 0.72;">{% translate "We understand the unique rhythm of life here. Our content and support fit your actual culture and lifestyle." %}</p>
         </div>
         <div class="why__item" data-reveal="up">
           <h3>{% translate "Accessible & Affordable" %}</h3>
-          <p>{% translate "Well-being shouldn’t feel out of reach. We’re keeping things realistic and inclusive for everyone." %}</p>
+          <p style="opacity: 0.72;">{% translate "Well-being shouldn’t feel out of reach. We’re keeping things realistic and inclusive for everyone." %}</p>
         </div>
       </div>
     </div>

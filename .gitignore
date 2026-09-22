@@ -30,3 +30,4 @@ staticfiles/
 # NOTE: locale/**/*.mo is intentionally tracked. build.sh does not run
 # compilemessages (Render's image has no gettext), so the compiled catalogs
 # must be committed for Pidgin to work in production.
+soothifyAfrica/settings.py

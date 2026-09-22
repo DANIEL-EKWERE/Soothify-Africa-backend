@@ -16,8 +16,14 @@
 
     <div class="footer__cta" data-reveal="right">
       <h2 class="footer__title">{% translate "Take charge of your well-being. Don't let stress run the show" %}</h2>
+      {% comment %}
+        The waitlist pages include this footer with cta=False: the design drops
+        the line and the button there, since the page itself is the sign-up.
+      {% endcomment %}
+      {% if cta != False %}
       <p>{% translate "We're putting the final touches on everything. Drop your email to claim your spot on the waitlist" %}</p>
       <a class="btn btn--primary" href="{{ waitlist_url }}">{% translate "Join waitlist" %}</a>
+      {% endif %}
     </div>
   </div>
 
@@ -27,7 +33,7 @@
         <a href="{% url 'home:privacy' %}">{% translate "Privacy Policy" %}</a>
         <a href="{% url 'home:terms' %}">{% translate "Terms of Use" %}</a>
       </nav>
-      <p class="footer__copy">{% now "Y" as year %}{% blocktranslate asvar copyright %}© {{ year }} . Powered by soothifyafrica. All Rights Reserved.{% endblocktranslate %}{{ copyright|brandmark }}</p>
+      <p class="footer__copy">{% now "Y" as year %}{% blocktranslate asvar copyright %}© {{ year }} . Powered by soothifyAfrica. All Rights Reserved.{% endblocktranslate %}{{ copyright|brandmark }}</p>
     </div>
   </div>
 </footer>

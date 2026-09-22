@@ -17,7 +17,7 @@ from home.forms import WaitlistForm
 from home.models import REFERRAL_BOOST, WaitlistSignup
 
 GOOD = {'name': 'Ada Obi', 'email': 'Ada@Example.com', 'phone': '08030000000',
-        'goals': ['stress', 'sleep'], 'interests': ['yoga'], 'source': 'social',
+        'goals': ['stress', 'sleep'], 'interests': ['yoga'],
         'wants_updates': 'on'}
 
 
@@ -34,7 +34,6 @@ class WaitlistFormTests(TestCase):
         self.assertEqual(row.email, 'ada@example.com')           # stored lower-case
         self.assertEqual(row.goals, ['stress', 'sleep'])
         self.assertEqual(row.interests, ['yoga'])
-        self.assertEqual(row.source, 'social')
         self.assertTrue(row.wants_updates)
         self.assertEqual(len(row.referral_code), 8)
 

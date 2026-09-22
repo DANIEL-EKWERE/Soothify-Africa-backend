@@ -1,4 +1,4 @@
-{% load brand %}
+{% load i18n brand %}
 {% comment %}
   One "check all that apply" group from the waitlist design: a question, a
   list of checkboxes, and an "Other (please specify)" line on the last row.
@@ -11,7 +11,8 @@
     {% for opt in field %}
       {% if opt.data.value == "other" %}
         <div class="wl-check wl-check--other">
-          <label class="wl-check__label">{{ opt.tag }}<span class="wl-check__box" aria-hidden="true"></span><span>{{ opt.choice_label }}</span></label>
+          {# split so the "(please specify)" part can be dimmed like the group hint #}
+          <label class="wl-check__label">{{ opt.tag }}<span class="wl-check__box" aria-hidden="true"></span><span>{% translate "Other" %} <span class="wl-check__hint">{% translate "(please specify)" %}</span></span></label>
           {{ other }}
         </div>
       {% else %}

@@ -236,8 +236,8 @@ msgstr "Privacy Policy"
 msgid "Terms of Use"
 msgstr "Terms of Use"
 
-msgid "Find Your<br>Inner Calm"
-msgstr "Find Your<br>Peace of Mind"
+msgid "Find Your <br>Inner Calm"
+msgstr "Find Your <br>Peace of Mind"
 
 msgid "© {{ year }} . Powered by soothifyafrica. All Rights Reserved."
 msgstr "© {{ year }} . Powered by soothifyafrica. All Rights Reserved."
@@ -307,9 +307,10 @@ msgid "Please select"
 msgstr "Abeg pick one"
 
 msgid ""
-"Send me early access invites, wellness tips, and exclusive launch updates."
+"Yes, send me early access invites, wellness tips, and exclusive launch "
+"updates."
 msgstr ""
-"Send me early access invite, wellness tips, and special launch updates."
+"Yes, send me early access invite, wellness tips, and special launch updates."
 
 msgid "Secure My Early Access"
 msgstr "Hold My Early Access"
@@ -337,6 +338,9 @@ msgstr "To feel more calm"
 
 msgid "Other (please specify)"
 msgstr "Other (abeg talk am)"
+
+msgid "(please specify)"
+msgstr "(abeg talk am)"
 
 msgid "Guided meditation & breathwork"
 msgstr "Guided meditation & breathing"

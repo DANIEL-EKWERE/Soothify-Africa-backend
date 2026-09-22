@@ -21,7 +21,7 @@ class WaitlistForm(forms.ModelForm):
         model = WaitlistSignup
         fields = (
             'name', 'email', 'phone', 'goals', 'goals_other',
-            'interests', 'interests_other', 'source', 'wants_updates',
+            'interests', 'interests_other', 'wants_updates',
         )
         widgets = {
             'name': forms.TextInput(attrs={'autocomplete': 'name', 'placeholder': _('Enter your name')}),
@@ -32,10 +32,6 @@ class WaitlistForm(forms.ModelForm):
             'goals_other': forms.TextInput(attrs={'aria-label': _('Other reason')}),
             'interests_other': forms.TextInput(attrs={'aria-label': _('Other experience')}),
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['source'].choices = [('', _('Please select'))] + list(WaitlistSignup.Source.choices)
 
     def clean_email(self):
         # Stored lower-cased so the same person cannot take two spots.
@@ -68,7 +64,8 @@ class WaitlistForm(forms.ModelForm):
             data['language'] = language
 
         signup = WaitlistSignup.objects.filter(email=email).first()
-        if signup is None:
+        created = signup is None
+        if created:
             signup = WaitlistSignup(email=email)
             # only a brand-new signup can be credited to whoever shared the link
             if referral_code:
@@ -87,4 +84,7 @@ class WaitlistForm(forms.ModelForm):
             for field, value in data.items():
                 setattr(signup, field, value)
             signup.save()
+            created = False
+        # the view uses this to decide whether to send the welcome email
+        signup.was_created = created
         return signup
