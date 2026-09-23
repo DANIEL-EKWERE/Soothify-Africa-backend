@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n static brand %}
 <nav class="nav{% if closeable %} nav--closeable{% endif %}" aria-label="{% translate "Primary" %}">
   <div class="shell nav__inner">
     <a class="brand" href="{% url 'home:landing' %}" aria-label="{% translate "Soothify Africa — home" %}">
@@ -33,15 +33,23 @@
           </svg>
         </button>
         {% get_current_language as CURRENT %}
-        <form class="lang__menu" id="lang-menu" method="post" action="{% url 'set_language' %}" hidden data-lang-menu>
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% comment %}
+          One small form per language, each carrying its own "next": this page's
+          address in that language (see the path_in_language tag). A single form
+          could only post the address as it stands, which left a visitor without
+          a language cookie stuck on the /pcm/ page they arrived at.
+        {% endcomment %}
+        <div class="lang__menu" id="lang-menu" hidden data-lang-menu>
           {% get_available_languages as LANGS %}
           {% for code, name in LANGS %}
-            <button class="lang__opt" type="submit" name="language" value="{{ code }}"
-                    {% if code == CURRENT %}aria-current="true"{% endif %}>{{ name }}</button>
+            <form method="post" action="{% url 'set_language' %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% path_in_language code %}">
+              <button class="lang__opt" type="submit" name="language" value="{{ code }}"
+                      {% if code == CURRENT %}aria-current="true"{% endif %}>{{ name }}</button>
+            </form>
           {% endfor %}
-        </form>
+        </div>
       </div>
 
       {% if not closeable %}

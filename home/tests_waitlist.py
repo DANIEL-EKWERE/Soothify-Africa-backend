@@ -16,7 +16,7 @@ from django.urls import reverse
 from home.forms import WaitlistForm
 from home.models import REFERRAL_BOOST, WaitlistSignup
 
-GOOD = {'name': 'Ada Obi', 'email': 'Ada@Example.com', 'phone': '08030000000',
+GOOD = {'name': 'Ada Obi', 'email': 'Ada@Example.com',
         'goals': ['stress', 'sleep'], 'interests': ['yoga'],
         'wants_updates': 'on'}
 

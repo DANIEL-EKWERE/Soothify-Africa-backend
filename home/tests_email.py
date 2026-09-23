@@ -7,7 +7,7 @@ from django.urls import reverse
 from home.models import WaitlistSignup
 from home.tests_waitlist import PLAIN_TEST_SETTINGS
 
-SIGNUP = {'name': 'Ada Obi', 'email': 'ada@example.com', 'phone': '08030000000'}
+SIGNUP = {'name': 'Ada Obi', 'email': 'ada@example.com'}
 
 
 @override_settings(**PLAIN_TEST_SETTINGS)
@@ -44,7 +44,7 @@ class WelcomeEmailTests(TestCase):
 
     def test_not_sent_again_when_someone_updates_their_answers(self):
         self.join()
-        self.join(phone='08031111111')                       # same email, new details
+        self.join(name='Ada Obi-Nwosu')                      # same email, new details
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(WaitlistSignup.objects.count(), 1)
 

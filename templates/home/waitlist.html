@@ -19,11 +19,10 @@
       {% if form.non_field_errors %}<div class="wl-error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
 
       <div class="wl-fields">
-        {% for field in form %}{% if field.name == "name" or field.name == "email" or field.name == "phone" %}
+        {% for field in form %}{% if field.name == "name" or field.name == "email" %}
           <div class="wl-field{% if field.errors %} is-invalid{% endif %}" data-reveal="up">
             <label class="wl-field__label" for="{{ field.id_for_label }}">
-              {% if field.name == "name" %}{% translate "Name" %}{% elif field.name == "email" %}{% translate "Email" %}{% else %}{% translate "Phone" %}{% endif %}
-              {% if field.name == "phone" %}<span class="wl-field__opt">{% translate "(optional)" %}</span>{% endif %}
+              {% if field.name == "name" %}{% translate "Name" %}{% else %}{% translate "Email" %}{% endif %}
             </label>
             {{ field }}
             {% for error in field.errors %}<p class="wl-field__error">{{ error }}</p>{% endfor %}

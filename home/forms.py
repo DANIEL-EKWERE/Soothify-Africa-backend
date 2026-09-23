@@ -20,15 +20,13 @@ class WaitlistForm(forms.ModelForm):
     class Meta:
         model = WaitlistSignup
         fields = (
-            'name', 'email', 'phone', 'goals', 'goals_other',
+            'name', 'email', 'goals', 'goals_other',
             'interests', 'interests_other', 'wants_updates',
         )
         widgets = {
             'name': forms.TextInput(attrs={'autocomplete': 'name', 'placeholder': _('Enter your name')}),
             'email': forms.EmailInput(attrs={'autocomplete': 'email', 'inputmode': 'email',
                                              'placeholder': _('Enter your email')}),
-            'phone': forms.TextInput(attrs={'autocomplete': 'tel', 'inputmode': 'tel',
-                                            'placeholder': _('Enter your phone number')}),
             'goals_other': forms.TextInput(attrs={'aria-label': _('Other reason')}),
             'interests_other': forms.TextInput(attrs={'aria-label': _('Other experience')}),
         }

@@ -424,6 +424,12 @@ p {
   display: none;
 }
 
+/* each option is its own form (it posts that language's address), so the form
+   itself must not take part in the menu's layout */
+.lang__menu form {
+  display: contents;
+}
+
 .lang__opt {
   width: 100%;
   height: 48px;
@@ -530,7 +536,8 @@ p {
   --fade-from: 76%;
   /* where the bottom fade-out starts */
   position: relative;
-  height: 605px;
+  /* just clears the lowest visible card: taller left dead space under the fan */
+  height: 555px;
   margin-top: 40px;
   overflow: hidden;
   /* clips everything but the top of the circle */
@@ -541,11 +548,18 @@ p {
   mask-image: linear-gradient(to bottom, #000 var(--fade-from), rgba(0, 0, 0, 0) 100%);
 }
 
-/* Hovering the band pauses the carousel (see the script in landing.html), so
-   the pointer turns into a small pause badge to say so. 28px with the hotspot
-   in the middle; browsers that cannot show it fall back to the normal arrow. */
+/* The band no longer pauses under the pointer, so it carries the ordinary
+   arrow rather than the old pause badge. It can be dragged by hand (see the
+   script in landing.html): a drag in progress shows the closed hand, and
+   touch-action leaves vertical swipes to the page so phones still scroll. */
 .wheel {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='13' fill='%23263238' fill-opacity='.82' stroke='%23fff' stroke-width='1.5'/%3E%3Crect x='9.5' y='8.5' width='3' height='11' rx='1' fill='%23fff'/%3E%3Crect x='15.5' y='8.5' width='3' height='11' rx='1' fill='%23fff'/%3E%3C/svg%3E") 14 14, default;
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.wheel.is-dragging,
+.wheel.is-dragging .wheel__card {
+  cursor: grabbing;
 }
 
 .wheel__hub {
@@ -615,15 +629,10 @@ p {
   height: 332px;
   margin: -166px 0 0 -125px;
   /* centre the card on the hub origin */
-  cursor: grab;
+  cursor: default;
   /* read right-to-left: push out to the rim, then swing round to this card's angle */
   /* rightmost first: size the card, push it to the rim, then swing it round */
   transform: rotate(var(--a)) translateY(calc(-1 * var(--R))) scale(var(--card-scale));
-}
-
-.wheel__card:hover,
-.wheel__card:focus-within {
-  cursor: grabbing;
 }
 
 .tile {
@@ -758,8 +767,10 @@ p {
 }
 
 /* ---------- why join ---------- */
+/* the card band's lower arc already leaves air under the cards, so this only
+   needs a little space of its own */
 .why {
-  padding-block: 56px 40px;
+  padding-block: 8px 40px;
 }
 
 .why__grid {
@@ -1230,12 +1241,12 @@ p {
 
 .footer__legal {
   display: flex;
-  gap: 72px;
+  gap: 96px;
 }
 
 .footer__bar a,
 .footer__copy {
-  font-weight: 600;
+  font-weight: 400;
   font-size: 16px;
   line-height: 23px;
 }
@@ -1929,12 +1940,12 @@ p {
 
 .foot__legal {
   display: flex;
-  gap: 64px;
+  gap: 96px;
 }
 
 .foot__legal a,
 .foot__copy {
-  font-weight: 600;
+  font-weight: 400;
   font-size: 16px;
   line-height: 23px;
   color: var(--wl-legal);
@@ -2074,6 +2085,10 @@ p {
 
   .foot .social {
     justify-content: center;
+  }
+
+  .foot__legal {
+    gap: 24px;
   }
 
   .foot__bottom {
@@ -2456,8 +2471,17 @@ p {
   }
 
   .social {
-    margin-top: 24px;
+    margin-top: 0;
     justify-content: center;
+  }
+
+  /* The waitlist footer has no CTA line or button, so the row is measured from
+     the bottom instead: pushed down the photo by the spare space, it ends up
+     77px above the Privacy / Terms line (24px of that is the bar's own top
+     padding, so 53px is left here). */
+  .footer--nocta .social {
+    margin-top: auto;
+    margin-bottom: 53px;
   }
 
   .footer__bar {
@@ -2472,7 +2496,7 @@ p {
   }
 
   .footer__legal {
-    gap: 64px;
+    gap: 24px;
   }
 
   .footer__copy {

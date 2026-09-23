@@ -218,7 +218,7 @@ msgid "Soothify Africa on LinkedIn"
 msgstr "Soothify Africa for LinkedIn"
 
 msgid "Take charge of your well-being. Don't let stress run the show"
-msgstr "Take Charge of Your Well-being. No let stress control your life"
+msgstr "Take charge of your well-being. No let stress control your life"
 
 msgid ""
 "We're putting the final touches on everything. Drop your email to claim your"

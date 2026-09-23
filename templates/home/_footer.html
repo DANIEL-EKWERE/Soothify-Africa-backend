@@ -1,5 +1,9 @@
 {% load i18n static brand %}
-<footer class="footer" id="waitlist">
+{% comment %}
+  The waitlist pages drop the CTA (see below); the class lets the CSS space
+  what is left differently.
+{% endcomment %}
+<footer class="footer{% if cta == False %} footer--nocta{% endif %}" id="waitlist">
   <img class="footer__bg" src="{% static 'img/footer.jpg' %}" alt="" width="1333" height="2000" loading="lazy">
 
   <div class="shell footer__main">

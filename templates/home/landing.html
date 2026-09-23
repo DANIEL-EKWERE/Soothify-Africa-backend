@@ -137,13 +137,16 @@
     var first = Math.min.apply(null, angles);
     var last = Math.max.apply(null, angles);
 
-    var hovering = false, onScreen = true, timer = null, ended = 0;
+    var onScreen = true, timer = null, ended = 0;
 
-    function advance() {
+    // dir -1 steps left (the resting direction), +1 steps right; a card pushed
+    // past either end jumps to the spare slot at the other one
+    function shift(dir) {
       cards.forEach(function (card, i) {
-        var next = angles[i] - step;
-        if (next < first) {
-          next = last;
+        var next = angles[i] - dir * step;
+        var wrapped = dir > 0 ? next < first : next > last;
+        if (wrapped) {
+          next = dir > 0 ? last : first;
           card.classList.add('is-wrapping');
           card.style.setProperty('--a', next + 'deg');
           void card.offsetWidth;            // commit the jump before transitions return
@@ -155,8 +158,12 @@
       });
     }
 
+    function advance() { shift(1); }
+
     function tick() {
-      if (!hovering && onScreen && !document.hidden) advance();
+      // keeps turning under the pointer: only a hidden tab or an off-screen
+      // band holds it, so hovering a card no longer stops the carousel
+      if (onScreen && !document.hidden) advance();
     }
 
     function start() {
@@ -170,9 +177,43 @@
       if (++ended >= cards.length) start();
     });
 
-    // hold still while someone is reading a card, or while it is off screen
-    wheel.addEventListener('mouseenter', function () { hovering = true; });
-    wheel.addEventListener('mouseleave', function () { hovering = false; });
+    // Drag the band to turn it by hand, mouse or finger. Every DRAG_STEP px of
+    // horizontal travel moves the fan one slot, and the timer keeps running, so
+    // letting go leaves it turning from wherever it was dragged to.
+    var DRAG_STEP = 70;
+    var dragId = null, dragX = 0;
+
+    wheel.addEventListener('pointerdown', function (e) {
+      if (e.button) return;                 // left button / touch / pen only
+      dragId = e.pointerId;
+      dragX = e.clientX;
+      wheel.classList.add('is-dragging');
+    });
+
+    wheel.addEventListener('pointermove', function (e) {
+      if (e.pointerId !== dragId) return;
+      var moved = e.clientX - dragX;
+      while (Math.abs(moved) >= DRAG_STEP) {
+        shift(moved < 0 ? 1 : -1);
+        dragX += (moved < 0 ? -1 : 1) * DRAG_STEP;
+        moved = e.clientX - dragX;
+      }
+    });
+
+    function endDrag(e) {
+      if (e.pointerId !== dragId) return;
+      dragId = null;
+      wheel.classList.remove('is-dragging');
+    }
+
+    wheel.addEventListener('pointerup', endDrag);
+    wheel.addEventListener('pointercancel', endDrag);
+    wheel.addEventListener('pointerleave', endDrag);
+
+    // a card dragged over is not a card clicked
+    wheel.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+    // hold still while the band is off screen
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (entries) {
         onScreen = entries[0].isIntersecting;
