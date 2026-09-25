@@ -336,10 +336,10 @@ msgstr "To find inner calm & mindfulness"
 msgid "Feeling more calm"
 msgstr "To feel more calm"
 
-msgid "Other (please specify)"
+msgid "Other (Please specify)"
 msgstr "Other (abeg talk am)"
 
-msgid "(please specify)"
+msgid "(Please specify)"
 msgstr "(abeg talk am)"
 
 msgid "Guided meditation & breathwork"

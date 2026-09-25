@@ -12,7 +12,7 @@
       {% if opt.data.value == "other" %}
         <div class="wl-check wl-check--other">
           {# split so the "(please specify)" part can be dimmed like the group hint #}
-          <label class="wl-check__label">{{ opt.tag }}<span class="wl-check__box" aria-hidden="true"></span><span>{% translate "Other" %} <span class="wl-check__hint">{% translate "(please specify)" %}</span></span></label>
+          <label class="wl-check__label">{{ opt.tag }}<span class="wl-check__box" aria-hidden="true"></span><span>{% translate "Other" %} <span class="wl-check__hint">{% translate "(Please specify)" %}</span></span></label>
           {{ other }}
         </div>
       {% else %}

@@ -25,7 +25,7 @@ class WaitlistSignup(models.Model):
         ROUTINES = 'routines', _('Building consistent wellness routines')
         MINDFULNESS = 'mindfulness', _('Finding inner calm & mindfulness')
         CALM = 'calm', _('Feeling more calm')
-        OTHER = 'other', _('Other (please specify)')
+        OTHER = 'other', _('Other (Please specify)')
 
     class Interest(models.TextChoices):
         MEDITATION = 'meditation', _('Guided meditation & breathwork')
@@ -33,7 +33,7 @@ class WaitlistSignup(models.Model):
         YOGA = 'yoga', _('Gentle yoga & movement')
         COURSES = 'courses', _('Wellness & mindfulness courses')
         COMMUNITY = 'community', _('Community support & circles')
-        OTHER = 'other', _('Other (please specify)')
+        OTHER = 'other', _('Other (Please specify)')
 
     class Source(models.TextChoices):
         SOCIAL = 'social', _('Social Media')
