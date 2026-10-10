@@ -1,6 +1,8 @@
 {% extends "home/base.html" %}
 {% load i18n static brand %}
 
+{% block preload %}<link rel="preload" as="image" href="{% static 'img/hero.jpg' %}" fetchpriority="high">{% endblock %}
+
 {% block title %}{% translate "Soothify Africa — Find Your Inner Calm" %}{% endblock %}
 {% block description %}{% translate "Soothify Africa is building a simpler way to find balance, right here at home. Therapy, guided meditation, Pilates and wellness content in Pidgin and English. Join the waitlist for early access." %}{% endblock %}
 
@@ -223,9 +225,10 @@
 </script>
 
 <script>
-  // Hero video. Plays everywhere including phones; at ~1.8MB the clip is small
-  // enough that gating it on screen width is not worth the lost impact. The
-  // poster still stands in whenever playback is refused or unwanted.
+  // Hero video -- 1.8MB, and pure decoration: the poster carries the design on
+  // its own. So it is the last thing the page asks for, after everything else
+  // has loaded and the browser is idle, and it is skipped altogether on a slow
+  // or metered connection, where fetching it made the first visit crawl.
   (function () {
     var v = document.querySelector('[data-hero-video]');
     if (!v) return;
@@ -237,13 +240,26 @@
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    v.src = v.dataset.src;
-    v.load();
+    // "Data saver" on, or a connection reporting 2g/3g: the poster is enough.
+    var net = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (net && (net.saveData || /^([23]g|slow-2g)$/.test(net.effectiveType || ''))) return;
 
-    var p = v.play();
-    if (p && p.catch) {
-      p.catch(function () { /* autoplay refused by the browser; poster stays */ });
+    function start() {
+      v.src = v.dataset.src;
+      v.load();
+      var p = v.play();
+      if (p && p.catch) {
+        p.catch(function () { /* autoplay refused by the browser; poster stays */ });
+      }
     }
+
+    function whenIdle() {
+      if (window.requestIdleCallback) window.requestIdleCallback(start, { timeout: 3000 });
+      else window.setTimeout(start, 1200);
+    }
+
+    if (document.readyState === 'complete') whenIdle();
+    else window.addEventListener('load', whenIdle);
   })();
   
 </script>

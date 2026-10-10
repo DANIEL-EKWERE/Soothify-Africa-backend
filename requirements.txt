@@ -56,4 +56,13 @@ psycopg2-binary==2.9.10
 wheel==0.44.0
 whitenoise==6.8.2
 
-
+# ---- mobile API (Flutter app) -----------------------------------------------
+# DRF, SimpleJWT, CORS and django-filter are pinned above and used on both
+# deployments. The three below belong to AWS only: on cPanel settings.py falls
+# back to SQLite, files on disk and inline background work, and none of them is
+# imported (see DEPLOY_TARGET in settings.py).
+#
+# django-storages[s3]==1.14.4   # media in S3 / Cloudflare R2, signed URLs
+# celery==5.3.6                 # background worker
+# redis==5.0.8                  # its broker
+cryptography>=42.0            # signs the ZEGOCLOUD call tokens
