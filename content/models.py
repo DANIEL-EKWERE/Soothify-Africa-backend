@@ -140,6 +140,19 @@ class MediaItem(models.Model):
         return self.title
 
     @property
+    def length_label(self):
+        """How long it runs, for a person: "45 min", "90 sec", or nothing.
+
+        Articles have no duration, and a card that says "0 min" reads like a
+        mistake rather than an absence.
+        """
+        if not self.duration_seconds:
+            return ''
+        if self.duration_seconds < 60:
+            return '{0} sec'.format(self.duration_seconds)
+        return '{0} min'.format(round(self.duration_seconds / 60))
+
+    @property
     def practitioner_name(self):
         if self.practitioner_id and self.practitioner.full_name:
             return self.practitioner.full_name

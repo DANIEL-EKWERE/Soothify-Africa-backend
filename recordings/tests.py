@@ -8,7 +8,6 @@ this was built for did not happen.
 import datetime
 from unittest.mock import patch
 
-from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -345,7 +344,6 @@ class AccessTests(RecordingTestCase):
         self.assertEqual(entry.action, 'audio')
 
 
-@override_settings(PAYSTACK_SECRET_KEY='sk_test_key')
 class CallbackTests(RecordingTestCase):
     def test_an_unsigned_callback_is_refused(self):
         Recording.objects.create(

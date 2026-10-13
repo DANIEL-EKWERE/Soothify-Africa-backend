@@ -66,3 +66,4 @@ whitenoise==6.8.2
 # celery==5.3.6                 # background worker
 # redis==5.0.8                  # its broker
 cryptography>=42.0            # signs the ZEGOCLOUD call tokens
+PyJWT>=2.8                    # verifies Apple's identity tokens against their JWKS

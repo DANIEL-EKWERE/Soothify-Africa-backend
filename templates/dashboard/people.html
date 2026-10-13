@@ -1,0 +1,53 @@
+{% extends "dashboard/base.html" %}
+{% block title %}People{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>People</h1>
+    <p>{{ total }} account{{ total|pluralize }} · {{ members }} on a membership · {{ practitioners }} practitioner{{ practitioners|pluralize }}</p>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+    </svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Search a name or an email">
+  </div>
+  <button class="btn btn--quiet btn--small" type="submit">Search</button>
+</form>
+
+<section class="panel">
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <thead>
+        <tr><th>Person</th><th>Role</th><th>Language</th><th>Joined</th></tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <span class="table__main">{{ row.profile.full_name|default:row.get_full_name|default:"—" }}</span>
+            <span class="table__sub">{{ row.email }}</span>
+          </td>
+          <td>
+            {% if row.is_staff %}<span class="pill pill--brand">Staff</span>
+            {% elif row.profile.role == "practitioner" %}<span class="pill pill--brand">Practitioner</span>
+            {% else %}<span class="pill">User</span>{% endif %}
+          </td>
+          <td>{{ row.profile.get_language_display|default:"—" }}</td>
+          <td><span class="table__sub">{{ row.date_joined|date:"j M Y" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="table__empty">
+          <strong>{% if q %}Nothing matches "{{ q }}"{% else %}No accounts yet{% endif %}</strong>
+          {% if q %}<a href="/dashboard/people/">Clear the search</a>{% endif %}
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

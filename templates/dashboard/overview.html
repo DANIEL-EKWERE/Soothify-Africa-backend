@@ -1,0 +1,170 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Overview{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Good to see you</h1>
+    <p>What has happened across Soothify in the last fortnight.</p>
+  </div>
+  <a class="btn btn--primary" href="/dashboard/media/new/">Upload something</a>
+</div>
+
+<div class="cards">
+  {% for card in cards %}
+    <a class="card" href="{{ card.href }}">
+      <span class="card__label">{{ card.label }}</span>
+      <div class="card__value">
+        {{ card.value }}
+        {% if card.trend is not None %}
+          <span class="trend {% if card.trend >= 0 %}trend--up{% else %}trend--down{% endif %}">
+            {% if card.trend >= 0 %}&uarr;{% else %}&darr;{% endif %}{{ card.trend }}%
+          </span>
+        {% endif %}
+      </div>
+      <p class="card__note">{{ card.note }}</p>
+    </a>
+  {% endfor %}
+</div>
+
+{% if open_flags %}
+  <div class="note note--warn" style="margin-bottom:20px">
+    <strong>{{ open_flags }} recording{{ open_flags|pluralize }} flagged</strong> and waiting for a
+    person to look. <a href="/dashboard/recordings/">Review them</a>.
+  </div>
+{% endif %}
+
+<div class="grid grid--2">
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2>Waitlist, day by day</h2>
+        <p>The last fourteen days.</p>
+      </div>
+      <a class="btn btn--quiet btn--small" href="/dashboard/waitlist/">See all</a>
+    </div>
+    <div class="panel__body">
+      <div class="chart">
+        {% for bar in bars %}
+          <div class="chart__col" title="{{ bar.label }}: {{ bar.count }}">
+            <div class="chart__bar{% if not bar.count %} chart__bar--empty{% endif %}"
+                 style="height: {{ bar.height }}%"></div>
+            <span class="chart__day">{{ bar.day|date:"j" }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2>Newest signups</h2>
+        <p>{{ passport }} also asked about Passport.</p>
+      </div>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <table class="table">
+        <tbody>
+        {% for row in recent_signups %}
+          <tr>
+            <td>
+              <span class="table__main">{{ row.name }}</span>
+              <span class="table__sub">{{ row.email }}</span>
+            </td>
+            <td style="text-align:right">
+              <span class="pill">{{ row.created_at|timesince }} ago</span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td class="table__empty">
+            <strong>Nobody yet</strong>
+            Signups from the landing page land here.
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="grid grid--2" style="margin-top:20px">
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2>Sessions coming up</h2>
+        <p>Booked and paid for.</p>
+      </div>
+      <a class="btn btn--quiet btn--small" href="/dashboard/sessions/">See all</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <table class="table">
+        <tbody>
+        {% for row in upcoming %}
+          <tr>
+            <td>
+              <span class="table__main">{{ row.get_discipline_display }}</span>
+              <span class="table__sub">with {{ row.expert.display_name }}</span>
+            </td>
+            <td><span class="pill pill--brand">{{ row.starts_at|date:"j M, g:i a" }}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td class="table__empty">
+            <strong>Nothing booked</strong>
+            Sessions appear once a client has paid.
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2>Added to the library</h2>
+        <p>Most recent first.</p>
+      </div>
+      <a class="btn btn--quiet btn--small" href="/dashboard/media/new/">Upload</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <table class="table">
+        <tbody>
+        {% for item in recent_media %}
+          <tr>
+            <td>
+              <a class="with-thumb" href="/dashboard/media/{{ item.pk }}/">
+                {% if item.cover %}<img class="thumb" src="{{ item.cover.url }}" alt="">{% else %}<span class="thumb"></span>{% endif %}
+                <span>
+                  <span class="table__main">{{ item.title }}</span>
+                  <span class="table__sub">{{ item.get_media_type_display }}{% if item.category %} · {{ item.category.name }}{% endif %}</span>
+                </span>
+              </a>
+            </td>
+            <td style="text-align:right">
+              {% if item.is_published %}
+                <span class="pill pill--good">Live</span>
+              {% else %}
+                <span class="pill">Draft</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td class="table__empty">
+            <strong>The library is empty</strong>
+            <a href="/dashboard/media/new/">Upload the first thing</a>.
+          </td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{% if enquiries %}
+  <div class="note" style="margin-top:20px">
+    <strong>{{ enquiries }} corporate enquir{{ enquiries|pluralize:"y,ies" }}</strong> waiting for a
+    reply. They are in <a href="/admin/corporate/enquiry/">the admin</a>.
+  </div>
+{% endif %}
+{% endblock %}

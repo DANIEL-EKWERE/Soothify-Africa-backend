@@ -13,6 +13,9 @@ urlpatterns = [
     # The Flutter app. Never language-prefixed: a mobile client should not have
     # to guess which URL shape it will get.
     path('api/v1/', include('api.urls')),
+
+    # The staff dashboard: signups, the library, sessions, recordings.
+    path('dashboard/', include('dashboard.urls')),
 ]
 
 # English is served at "/", Pidgin at "/pcm/".

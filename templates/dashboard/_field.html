@@ -1,0 +1,10 @@
+{% comment %}
+  One form field, with its label, help and errors. Keeps the upload form
+  readable instead of repeating six lines per input.
+{% endcomment %}
+<div class="field{% if field.errors %} field--invalid{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<span class="field__hint">{{ field.help_text }}</span>{% endif %}
+  {% for error in field.errors %}<p class="field__error">{{ error }}</p>{% endfor %}
+</div>

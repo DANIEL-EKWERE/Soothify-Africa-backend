@@ -1,0 +1,17 @@
+{% comment %}
+  One sidebar link. `key` is matched against the view's `page`, which is what
+  lights the current one.
+{% endcomment %}
+<a class="nav__item{% if page == key %} is-on{% endif %}" href="{{ href }}">
+  <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    {% if icon == "grid" %}<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    {% elif icon == "list" %}<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+    {% elif icon == "play" %}<circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z"/>
+    {% elif icon == "calendar" %}<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+    {% elif icon == "mic" %}<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+    {% elif icon == "people" %}<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 11a3 3 0 1 0 0-6M18 20a5.5 5.5 0 0 0-2-4.3"/>
+    {% endif %}
+  </svg>
+  {{ label }}
+  {% if count %}<span class="nav__count">{{ count }}</span>{% endif %}
+</a>

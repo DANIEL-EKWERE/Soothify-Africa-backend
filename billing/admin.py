@@ -5,10 +5,19 @@ from .models import Membership, Payment, Plan, PromoCode
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ('name', 'key', 'price_naira', 'cadence', 'action',
-                    'is_recommended', 'is_active', 'position')
+    list_display = ('name', 'key', 'price_naira', 'cadence', 'trial_days',
+                    'sold', 'action', 'is_recommended', 'is_active', 'position')
     list_editable = ('is_active', 'position', 'is_recommended')
     search_fields = ('key', 'name')
+
+    @admin.display(boolean=True, description='set up at Bachs')
+    def sold(self, obj):
+        """Whether this card can actually be bought.
+
+        A priced plan with no Bachs product refuses checkout, so this is the
+        first thing to look at when "start trial" stops working.
+        """
+        return bool(obj.bachs_product_id) or obj.price_naira is None
 
 
 @admin.register(Membership)
@@ -17,7 +26,7 @@ class MembershipAdmin(admin.ModelAdmin):
     list_filter = ('state', 'cadence')
     search_fields = ('user__email',)
     # The card details come from Paystack and must not be edited by hand.
-    readonly_fields = ('customer_code', 'authorization_code', 'card_brand',
+    readonly_fields = ('customer_id', 'subscription_id', 'card_brand',
                        'card_last4', 'created_at', 'updated_at')
 
 

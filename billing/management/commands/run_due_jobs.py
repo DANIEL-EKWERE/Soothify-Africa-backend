@@ -8,7 +8,7 @@ host without a worker, one cron entry runs the lot:
 
 from django.core.management.base import BaseCommand
 
-from billing.tasks import charge_due_subscriptions
+from billing.tasks import reconcile_subscriptions
 from experts.tasks import release_expired_holds, send_session_reminders
 from recordings.tasks import purge_old_recordings
 
@@ -19,7 +19,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '--only',
-            choices=['charges', 'reminders', 'holds', 'recordings'],
+            choices=['subscriptions', 'reminders', 'holds', 'recordings'],
             help='Run just one of them.',
         )
 
@@ -29,8 +29,8 @@ class Command(BaseCommand):
 
         if only in (None, 'holds'):
             ran.append(('released holds', release_expired_holds()))
-        if only in (None, 'charges'):
-            ran.append(('charged memberships', charge_due_subscriptions()))
+        if only in (None, 'subscriptions'):
+            ran.append(('reconciled memberships', reconcile_subscriptions()))
         if only in (None, 'reminders'):
             ran.append(('session reminders', send_session_reminders()))
         if only in (None, 'recordings'):

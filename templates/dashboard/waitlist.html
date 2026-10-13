@@ -1,0 +1,103 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Waitlist{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Waitlist</h1>
+    <p>{{ total }} {{ total|pluralize:"person,people" }} waiting to hear from you.</p>
+  </div>
+  <a class="btn btn--quiet" href="/dashboard/waitlist/export/">Download CSV</a>
+</div>
+
+<form class="filters" method="get">
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+    </svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Search a name or an email">
+  </div>
+  <a class="chip{% if not source %} is-on{% endif %}" href="/dashboard/waitlist/">Everyone</a>
+  {% for row in sources %}
+    {% if row.source %}
+      <a class="chip{% if source == row.source %} is-on{% endif %}"
+         href="?source={{ row.source }}">{{ row.source|title }} · {{ row.count }}</a>
+    {% endif %}
+  {% endfor %}
+  <button class="btn btn--quiet btn--small" type="submit">Search</button>
+</form>
+
+<section class="panel">
+  <div class="panel__head">
+    <div>
+      <h2>Signups</h2>
+      <p>Newest first. Showing up to 200.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Heard about us</th>
+          <th>Updates</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <span class="table__main">{{ row.name }}</span>
+            <span class="table__sub">{{ row.email }}</span>
+          </td>
+          <td>{{ row.phone|default:"—" }}</td>
+          <td>{{ row.get_source_display|default:"—" }}</td>
+          <td>
+            {% if row.wants_updates %}
+              <span class="pill pill--good">Yes</span>
+            {% else %}
+              <span class="pill">No</span>
+            {% endif %}
+          </td>
+          <td><span class="table__sub">{{ row.created_at|date:"j M Y, g:i a" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="table__empty">
+          <strong>{% if q %}Nothing matches "{{ q }}"{% else %}No signups yet{% endif %}</strong>
+          {% if q %}<a href="/dashboard/waitlist/">Clear the search</a>{% else %}They arrive from the landing page.{% endif %}
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel" style="margin-top:20px">
+  <div class="panel__head">
+    <div>
+      <h2>Passport waitlist</h2>
+      <p>People asking about the city-wide studio pass. A separate list — do not mail them together.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <tbody>
+      {% for row in passport %}
+        <tr>
+          <td><span class="table__main">{{ row.email }}</span></td>
+          <td>{{ row.city|default:"—" }}</td>
+          <td style="text-align:right"><span class="table__sub">{{ row.created_at|date:"j M Y" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td class="table__empty">
+          <strong>Nobody yet</strong>
+          The Passport card on the Plans screen collects these.
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

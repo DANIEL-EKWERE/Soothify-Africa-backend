@@ -1,0 +1,101 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{% if item %}{{ item.title }}{% else %}Upload{% endif %}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>{% if item %}Edit “{{ item.title }}”{% else %}Upload to the library{% endif %}</h1>
+    <p>Audio, video or an article. What you add here is what the app shows.</p>
+  </div>
+  <a class="btn btn--quiet" href="/dashboard/media/">Back to the library</a>
+</div>
+
+<form class="form form-page" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="form__error">{{ form.non_field_errors|join:" " }}</div>
+  {% endif %}
+
+  <section class="panel">
+    <div class="panel__head"><div><h2>What it is</h2></div></div>
+    <div class="panel__body">
+      <div class="form">
+        {% include "dashboard/_field.html" with field=form.title %}
+        <div class="row-2">
+          {% include "dashboard/_field.html" with field=form.subtitle %}
+          {% include "dashboard/_field.html" with field=form.tag %}
+        </div>
+        {% include "dashboard/_field.html" with field=form.description %}
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <h2>The media</h2>
+        <p>Upload a file, or point at one already hosted elsewhere. Either way the app
+           only ever receives a short-lived signed link.</p>
+      </div>
+    </div>
+    <div class="panel__body">
+      <div class="form">
+        <div class="row-2">
+          {% include "dashboard/_field.html" with field=form.media_type %}
+          {% include "dashboard/_field.html" with field=form.duration_seconds %}
+        </div>
+        {% include "dashboard/_field.html" with field=form.media_file %}
+        {% include "dashboard/_field.html" with field=form.external_url %}
+        {% include "dashboard/_field.html" with field=form.cover %}
+        {% if item.cover %}
+          <div><img class="thumb" style="width:88px;height:88px" src="{{ item.cover.url }}" alt=""></div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><div><h2>Where it belongs</h2></div></div>
+    <div class="panel__body">
+      <div class="form">
+        <div class="row-2">
+          {% include "dashboard/_field.html" with field=form.category %}
+          {% include "dashboard/_field.html" with field=form.credited_name %}
+        </div>
+
+        <div class="field">
+          <label>Shelves</label>
+          <div class="checks">
+            {% for choice in form.shelves %}
+              <label class="check">{{ choice.tag }} {{ choice.choice_label }}</label>
+            {% endfor %}
+          </div>
+          <span class="field__hint">{{ form.shelves.help_text }}</span>
+        </div>
+
+        <div class="field">
+          <label>Placement</label>
+          <div class="checks">
+            <label class="check">{{ form.is_free }} Free to play</label>
+            <label class="check">{{ form.is_featured }} Home row</label>
+            <label class="check">{{ form.is_recommended }} Recommendations page</label>
+            <label class="check">{{ form.is_published }} Published</label>
+          </div>
+          <span class="field__hint">
+            Unticking “Free to play” puts it behind a membership. Leaving “Published”
+            unticked keeps it out of the app until you are ready.
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="form__actions">
+    <button class="btn btn--primary" type="submit">
+      {% if item %}Save changes{% else %}Add to the library{% endif %}
+    </button>
+    <a class="btn btn--quiet" href="/dashboard/media/">Cancel</a>
+  </div>
+</form>
+{% endblock %}

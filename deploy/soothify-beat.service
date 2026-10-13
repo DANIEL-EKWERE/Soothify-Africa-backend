@@ -1,0 +1,19 @@
+# The clock: reconciles subscriptions, sends session reminders, and deletes
+# recordings past their 30 days. Exactly one of these must run -- two would
+# delete twice and remind twice.
+[Unit]
+Description=Soothify Celery beat
+After=network.target redis-server.service
+
+[Service]
+User=soothify
+Group=www-data
+WorkingDirectory=/srv/soothify
+EnvironmentFile=/etc/soothify/env
+ExecStart=/srv/soothify/venv/bin/celery -A soothifyAfrica beat \
+    --loglevel=info --schedule=/srv/soothify/run/celerybeat-schedule
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

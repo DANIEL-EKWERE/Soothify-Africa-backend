@@ -1,0 +1,17 @@
+# Background work: sending mail, transcribing recordings, payouts.
+[Unit]
+Description=Soothify Celery worker
+After=network.target redis-server.service
+
+[Service]
+User=soothify
+Group=www-data
+WorkingDirectory=/srv/soothify
+EnvironmentFile=/etc/soothify/env
+ExecStart=/srv/soothify/venv/bin/celery -A soothifyAfrica worker \
+    --loglevel=info --concurrency=2
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

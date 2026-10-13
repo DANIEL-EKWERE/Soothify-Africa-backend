@@ -1,0 +1,61 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Sessions{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Sessions</h1>
+    <p>{{ total }} booked · ₦{{ earned|floatformat:"0" }} taken · {{ experts.count }} practitioner{{ experts.count|pluralize }}</p>
+  </div>
+</div>
+
+<div class="filters">
+  <a class="chip{% if not status %} is-on{% endif %}" href="/dashboard/sessions/">All</a>
+  <a class="chip{% if status == "confirmed" %} is-on{% endif %}" href="?status=confirmed">Confirmed</a>
+  <a class="chip{% if status == "pending" %} is-on{% endif %}" href="?status=pending">Awaiting payment</a>
+  <a class="chip{% if status == "completed" %} is-on{% endif %}" href="?status=completed">Completed</a>
+  <a class="chip{% if status == "cancelled" %} is-on{% endif %}" href="?status=cancelled">Cancelled</a>
+</div>
+
+<section class="panel">
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Discipline</th>
+          <th>Practitioner</th>
+          <th>Client</th>
+          <th>Price</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <span class="table__main">{{ row.starts_at|date:"j M Y" }}</span>
+            <span class="table__sub">{{ row.starts_at|date:"g:i a" }} · {{ row.get_mode_display }}</span>
+          </td>
+          <td>{{ row.get_discipline_display }}</td>
+          <td>{{ row.expert.display_name }}</td>
+          <td><span class="table__sub">{{ row.client.email }}</span></td>
+          <td>₦{{ row.price_naira }}</td>
+          <td>
+            {% if row.status == "confirmed" %}<span class="pill pill--good">Confirmed</span>
+            {% elif row.status == "completed" %}<span class="pill pill--brand">Completed</span>
+            {% elif row.status == "pending" %}<span class="pill pill--warn">Awaiting payment</span>
+            {% else %}<span class="pill">{{ row.get_status_display }}</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="table__empty">
+          <strong>Nothing booked yet</strong>
+          Sessions appear here as soon as someone books one.
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

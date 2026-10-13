@@ -2,6 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -10,6 +11,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import KycResponse, Profile
+from .social import profile_for, verify_apple, verify_google
 from .serializers import (
     KycSerializer,
     LoginSerializer,
@@ -60,6 +62,45 @@ class LoginView(APIView):
         profile = getattr(user, 'profile', None) or Profile.objects.create(
             user=user, full_name=user.get_full_name(),
         )
+        return Response(_session_payload(profile, request))
+
+
+class SocialLoginView(APIView):
+    """Sign in with Google or Apple.
+
+    One view, two providers: the only thing that differs is which token is
+    verified and what it yields. Both answer with the same payload as
+    LoginView, so the app routes identically afterwards and does not care
+    which button was pressed.
+
+    Throttled on the same 'auth' scope as password login: this issues
+    sessions, so it is worth the same protection.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    #: Set by as_view(provider=...) in urls.py.
+    provider = 'google'
+
+    def post(self, request):
+        if self.provider == 'google':
+            token = request.data.get('id_token', '')
+            if not token:
+                raise ValidationError({'id_token': ['This field is required.']})
+            email, full_name = verify_google(token)
+        else:
+            token = request.data.get('identity_token', '')
+            if not token:
+                raise ValidationError({'identity_token': ['This field is required.']})
+            email, _sub = verify_apple(token)
+            # Apple sends the name only on the first authorisation, so the
+            # app forwards what it was given and it is used only if this
+            # turns out to be a new account.
+            full_name = (request.data.get('full_name') or '').strip()
+
+        profile = profile_for(email, full_name=full_name)
         return Response(_session_payload(profile, request))
 
 

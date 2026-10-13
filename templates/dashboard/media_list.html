@@ -1,0 +1,95 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Library{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Library</h1>
+    <p>{{ total }} piece{{ total|pluralize }} of content. Everything the app plays lives here.</p>
+  </div>
+  <a class="btn btn--primary" href="/dashboard/media/new/">Upload</a>
+</div>
+
+{% if request.GET.saved %}
+  <div class="note" style="margin-bottom:18px">Saved.</div>
+{% endif %}
+
+<form class="filters" method="get">
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+    </svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Search a title or a practitioner">
+  </div>
+  <a class="chip{% if not type %} is-on{% endif %}" href="/dashboard/media/">All</a>
+  <a class="chip{% if type == "audio" %} is-on{% endif %}" href="?type=audio">Audio</a>
+  <a class="chip{% if type == "video" %} is-on{% endif %}" href="?type=video">Video</a>
+  <a class="chip{% if type == "article" %} is-on{% endif %}" href="?type=article">Articles</a>
+  <button class="btn btn--quiet btn--small" type="submit">Search</button>
+</form>
+
+<section class="panel">
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Kind</th>
+          <th>Where it shows</th>
+          <th>Access</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for item in items %}
+        <tr>
+          <td>
+            <a class="with-thumb" href="/dashboard/media/{{ item.pk }}/">
+              {% if item.cover %}<img class="thumb" src="{{ item.cover.url }}" alt="">{% else %}<span class="thumb"></span>{% endif %}
+              <span>
+                <span class="table__main">{{ item.title }}</span>
+                <span class="table__sub">{{ item.practitioner_name|default:"No credit" }}{% if item.length_label %} · {{ item.length_label }}{% endif %}</span>
+              </span>
+            </a>
+          </td>
+          <td><span class="pill">{{ item.get_media_type_display }}</span></td>
+          <td>
+            {% if item.category %}<span class="table__sub">{{ item.category.name }}</span>{% endif %}
+            {% if item.is_featured %}<span class="pill pill--brand">Home</span>{% endif %}
+            {% if item.is_recommended %}<span class="pill pill--brand">Recommended</span>{% endif %}
+          </td>
+          <td>
+            {% if item.is_free %}
+              <span class="pill pill--good">Free</span>
+            {% else %}
+              <span class="pill pill--warn">Members</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.is_published %}
+              <span class="pill pill--good">Live</span>
+            {% else %}
+              <span class="pill">Draft</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right">
+            <form method="post" action="/dashboard/media/{{ item.pk }}/publish/" style="display:inline">
+              {% csrf_token %}
+              <button class="btn btn--quiet btn--small" type="submit">
+                {% if item.is_published %}Unpublish{% else %}Publish{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="table__empty">
+          <strong>{% if q %}Nothing matches "{{ q }}"{% else %}Nothing here yet{% endif %}</strong>
+          {% if q %}<a href="/dashboard/media/">Clear the search</a>{% else %}<a href="/dashboard/media/new/">Upload the first piece</a>.{% endif %}
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

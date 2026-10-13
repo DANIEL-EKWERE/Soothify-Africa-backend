@@ -1,8 +1,8 @@
 """Memberships, the free trial, session payments and invoices.
 
-Money is whole naira throughout, as everywhere else in this project. Paystack
-works in kobo, so the conversion happens at its edge (billing/paystack.py) and
-nowhere else.
+Money is whole naira throughout, as everywhere else in this project. Bachs
+takes decimal strings ("150000.00"), so the conversion happens at its edge
+(billing/bachs.py) and nowhere else.
 
 The shape follows the app's Manage-subscription screens: a membership is
 either inactive, on trial, or active; it renews monthly or annually; and
@@ -58,6 +58,17 @@ class Plan(models.Model):
     position = models.PositiveSmallIntegerField(_('position'), default=0)
     is_active = models.BooleanField(_('listed'), default=True)
 
+    # The recurring product at Bachs this card sells. Its trial_period is
+    # what starts a free trial, so a plan without one cannot be subscribed
+    # to -- see billing/bachs.py.
+    bachs_product_id = models.CharField(
+        _('Bachs product'), max_length=80, blank=True,
+    )
+    trial_days = models.PositiveSmallIntegerField(
+        _('free trial (days)'), default=7,
+        help_text=_('Set on the product at Bachs. Zero means no trial.'),
+    )
+
     class Meta:
         ordering = ('position', 'name')
         verbose_name = _('plan')
@@ -106,12 +117,12 @@ class Membership(models.Model):
     renews_at = models.DateTimeField(_('renews'), null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
-    # Paystack's handles. The card number itself never reaches this server:
-    # an authorization code is what lets us charge again, and the brand and
-    # last four digits are only there so the screen can say "Mastercard
-    # ending in 1234".
-    customer_code = models.CharField(_('Paystack customer'), max_length=80, blank=True)
-    authorization_code = models.CharField(_('card authorization'), max_length=120, blank=True)
+    # Bachs' handles. No card detail reaches this server: Bachs holds the
+    # saved method and runs the billing cycle, including the charge when a
+    # trial ends. The brand and last four digits are only so the screen can
+    # say "Mastercard ending in 1234".
+    customer_id = models.CharField(_('Bachs customer'), max_length=80, blank=True)
+    subscription_id = models.CharField(_('Bachs subscription'), max_length=80, blank=True)
     card_brand = models.CharField(_('card'), max_length=40, blank=True)
     card_last4 = models.CharField(_('last four'), max_length=4, blank=True)
 
@@ -150,24 +161,39 @@ class Membership(models.Model):
             return 0
         return self.plan.price_naira
 
-    def start_trial(self, plan, cadence):
+    def start_trial(self, plan, cadence, trial_ends_at=None, subscription_id=''):
+        """Record a trial that Bachs has started.
+
+        `trial_ends_at` comes from the subscription they created. Falling
+        back to our own clock would eventually disagree with the date they
+        actually charge on, and the screen promises a date.
+        """
         self.plan = plan
         self.cadence = cadence
         self.state = 'trial'
-        self.trial_ends_at = timezone.now() + timezone.timedelta(days=self.TRIAL_DAYS)
-        # The first charge lands when the trial ends, which is what the
-        # screen's "Your free trial ends on ..." sentence promises.
+        self.trial_ends_at = trial_ends_at or (
+            timezone.now() + timezone.timedelta(days=self.TRIAL_DAYS)
+        )
         self.renews_at = self.trial_ends_at
+        if subscription_id:
+            self.subscription_id = subscription_id
         self.cancelled_at = None
         self.save()
 
-    def extend(self):
-        """Move the renewal on by one period, after a successful charge."""
-        days = 365 if self.cadence == Cadence.ANNUAL else 30
-        start = self.renews_at or timezone.now()
-        if start < timezone.now():
-            start = timezone.now()
-        self.renews_at = start + timezone.timedelta(days=days)
+    def extend(self, until=None):
+        """Move the renewal on, after a successful charge.
+
+        `until` is the period end Bachs sent. Without it -- a one-off
+        payment, or an invoice that did not carry one -- we work it out from
+        the cadence.
+        """
+        if until is None:
+            days = 365 if self.cadence == Cadence.ANNUAL else 30
+            start = self.renews_at or timezone.now()
+            if start < timezone.now():
+                start = timezone.now()
+            until = start + timezone.timedelta(days=days)
+        self.renews_at = until
         self.state = 'active'
         self.trial_ends_at = None
         self.save(update_fields=['renews_at', 'state', 'trial_ends_at', 'updated_at'])
@@ -189,7 +215,6 @@ class Payment(models.Model):
     KINDS = (
         ('membership', _('Membership')),
         ('session', _('Session')),
-        ('card_check', _('Card verification')),
     )
     STATUS = (
         ('pending', _('Pending')),
@@ -215,8 +240,9 @@ class Payment(models.Model):
     )
     promo_code = models.CharField(_('promo code'), max_length=40, blank=True)
 
-    # Ours, sent to Paystack and echoed back on the webhook.
+    # Ours, sent to Bachs and echoed back on the webhook.
     reference = models.CharField(_('reference'), max_length=80, unique=True)
+    checkout_id = models.CharField(_('Bachs checkout'), max_length=80, blank=True)
     status = models.CharField(_('status'), max_length=20, choices=STATUS, default='pending')
     card_label = models.CharField(_('paid with'), max_length=60, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)

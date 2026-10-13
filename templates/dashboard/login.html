@@ -1,0 +1,49 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — Soothify Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,600;6..12,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+<div class="signin">
+  <div class="signin__card">
+    <a class="brand" href="/" style="margin-bottom:22px">
+      <img class="brand__mark" src="{% static 'img/logo-mark.jpg' %}" alt="" width="36" height="36">
+      <span><span class="brand__name">Soothify</span><span class="brand__sub">Dashboard</span></span>
+    </a>
+
+    <h1>Sign in</h1>
+    <p>For the Soothify team.</p>
+
+    {% if form.errors %}
+      {# One message for a wrong password and an unknown address: this page
+         should not say who has an account. #}
+      <div class="form__error" style="margin-bottom:18px">
+        That email and password do not match.
+      </div>
+    {% endif %}
+
+    <form method="post" class="form">
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_username">Email</label>
+        <input type="text" name="username" id="id_username" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label for="id_password">Password</label>
+        <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+      </div>
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="form__actions">
+        <button class="btn btn--primary" type="submit">Sign in</button>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

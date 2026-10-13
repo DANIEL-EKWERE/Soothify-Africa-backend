@@ -25,10 +25,10 @@ app.autodiscover_tasks()
 # (`python manage.py run_due_jobs`), so a deployment without beat -- cPanel --
 # can run the same things from a single daily cron entry.
 app.conf.beat_schedule = {
-    # Trials end on day 8 and are charged then; a trial that nobody looks at
-    # would otherwise run forever.
-    'charge-due-trials': {
-        'task': 'billing.tasks.charge_due_subscriptions',
+    # Bachs charges trials and renewals itself. This only catches a webhook
+    # that never arrived, by asking them what the truth is.
+    'reconcile-subscriptions': {
+        'task': 'billing.tasks.reconcile_subscriptions',
         'schedule': crontab(hour=6, minute=0),
     },
     # Reminders go out the morning of a session, to whoever asked for them.

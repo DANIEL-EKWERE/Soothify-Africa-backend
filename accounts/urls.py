@@ -9,6 +9,17 @@ app_name = 'accounts'
 urlpatterns = [
     path('register/', views.RegisterView.as_view(), name='register'),
     path('login/', views.LoginView.as_view(), name='login'),
+    # Social sign-in. One view, told which provider it is serving.
+    path(
+        'google/',
+        views.SocialLoginView.as_view(provider='google'),
+        name='google',
+    ),
+    path(
+        'apple/',
+        views.SocialLoginView.as_view(provider='apple'),
+        name='apple',
+    ),
     path('logout/', views.LogoutView.as_view(), name='logout'),
     path('email-available/', views.EmailAvailableView.as_view(), name='email-available'),
 

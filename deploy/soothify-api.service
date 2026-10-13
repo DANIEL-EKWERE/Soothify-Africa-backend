@@ -1,0 +1,21 @@
+# The API itself. systemctl enable --now soothify-api
+[Unit]
+Description=Soothify API (gunicorn)
+After=network.target
+
+[Service]
+User=soothify
+Group=www-data
+WorkingDirectory=/srv/soothify
+EnvironmentFile=/etc/soothify/env
+RuntimeDirectory=soothify
+ExecStart=/srv/soothify/venv/bin/gunicorn soothifyAfrica.wsgi:application \
+    --workers 3 \
+    --bind unix:/run/soothify/gunicorn.sock \
+    --timeout 120 \
+    --access-logfile - --error-logfile -
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,127 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Recordings{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Recordings</h1>
+    <p>Sessions are recorded for safety and deleted after 30 days.</p>
+  </div>
+</div>
+
+<div class="note" style="margin-bottom:20px">
+  Opening audio or a transcript is recorded against your name. Review the excerpt
+  first — most flags can be judged without listening to anybody's session.
+</div>
+
+{% if flags %}
+  <section class="panel" style="margin-bottom:20px">
+    <div class="panel__head">
+      <div>
+        <h2>Waiting for review</h2>
+        <p>{{ open_flags }} flag{{ open_flags|pluralize }} nobody has looked at.</p>
+      </div>
+      <a class="btn btn--quiet btn--small" href="/admin/recordings/flag/">Open the queue</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+      <table class="table">
+        <tbody>
+        {% for flag in flags %}
+          <tr>
+            <td style="width:140px">
+              {% if flag.kind == "safety" %}<span class="pill pill--bad">Safety</span>
+              {% elif flag.kind == "contact" %}<span class="pill pill--warn">Contact</span>
+              {% else %}<span class="pill pill--warn">Off-platform</span>{% endif %}
+              <span class="table__sub">{{ flag.created_at|date:"j M" }}</span>
+            </td>
+            <td><p class="excerpt">{{ flag.excerpt }}</p></td>
+            <td style="width:120px;text-align:right">
+              <a class="btn btn--quiet btn--small" href="/admin/recordings/flag/{{ flag.pk }}/change/">Review</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel__head">
+    <div>
+      <h2>All recordings</h2>
+      <p>{{ total }} in total. Audio is destroyed automatically once it is 30 days old.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Session</th>
+          <th>Length</th>
+          <th>Flags</th>
+          <th>Status</th>
+          <th>Deletes</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <span class="table__main">Session {{ row.session_id }}</span>
+            <span class="table__sub">{{ row.created_at|date:"j M Y, g:i a" }}</span>
+          </td>
+          <td>{% if row.duration_seconds %}{{ row.duration_seconds|floatformat:0 }}s{% else %}—{% endif %}</td>
+          <td>
+            {% if row.flag_count %}
+              <span class="pill pill--warn">{{ row.flag_count }}</span>
+            {% else %}
+              <span class="pill pill--good">None</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.status == "deleted" %}<span class="pill">Deleted</span>
+            {% elif row.status == "failed" %}<span class="pill pill--bad">Failed</span>
+            {% elif row.status == "recording" %}<span class="pill pill--brand">Recording</span>
+            {% else %}<span class="pill pill--good">{{ row.get_status_display }}</span>{% endif %}
+          </td>
+          <td><span class="table__sub">{% if row.deleted_at %}gone{% elif row.delete_after %}{{ row.delete_after|date:"j M" }}{% else %}—{% endif %}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="table__empty">
+          <strong>No recordings yet</strong>
+          They appear once sessions start being taken.
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel" style="margin-top:20px">
+  <div class="panel__head">
+    <div>
+      <h2>Who listened</h2>
+      <p>Every staff member who opened a recording or a transcript. This log cannot be edited.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <tbody>
+      {% for row in recent_access %}
+        <tr>
+          <td><span class="table__main">{{ row.staff.email }}</span></td>
+          <td>{{ row.get_action_display }}</td>
+          <td style="text-align:right"><span class="table__sub">{{ row.at|date:"j M Y, g:i a" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td class="table__empty">
+          <strong>Nobody has opened anything</strong>
+          Which is how it should usually look.
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
