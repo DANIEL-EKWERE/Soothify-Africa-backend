@@ -144,3 +144,29 @@ class KycSerializer(serializers.ModelSerializer):
                     seen.append(option)
             cleaned[str(question)] = seen
         return cleaned
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """"I have forgotten my password." Only an address is needed."""
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """The code from the email, and what the password should become."""
+
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6, min_length=6)
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(list(error.messages))
+        return value
+
+    def validate_code(self, value):
+        code = value.strip()
+        if not code.isdigit():
+            raise serializers.ValidationError('The code is six digits.')
+        return code

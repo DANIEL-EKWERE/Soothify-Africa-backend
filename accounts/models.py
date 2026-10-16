@@ -10,8 +10,11 @@ username, so `Profile.create_user` fills it from the email -- callers never
 deal with it.
 """
 
+import secrets
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -114,6 +117,79 @@ class Profile(models.Model):
         in every realistic case, so it is the natural choice.
         """
         return email[:150]
+
+
+class PasswordResetCode(models.Model):
+    """A short code emailed to someone who has forgotten their password.
+
+    A code rather than a link: this is a phone app, and a link in an email
+    has to find its way back into the app through a deep link that does not
+    exist yet. Six digits can be typed from the mail app without leaving the
+    screen that is asking for them.
+
+    The code is stored hashed. A leaked database should not hand anyone a
+    working reset for every account that asked for one in the last quarter
+    of an hour.
+    """
+
+    LIFETIME_MINUTES = 15
+    MAX_ATTEMPTS = 5
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reset_codes',
+    )
+    code_hash = models.CharField(_('code'), max_length=128)
+    expires_at = models.DateTimeField(_('expires'))
+    attempts = models.PositiveSmallIntegerField(_('tries'), default=0)
+    used_at = models.DateTimeField(_('used'), null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+        verbose_name = _('password reset code')
+        verbose_name_plural = _('password reset codes')
+        indexes = [models.Index(fields=['user', '-created_at'])]
+
+    def __str__(self):
+        return 'reset for {0}'.format(self.user.get_username())
+
+    @property
+    def is_usable(self):
+        if self.used_at is not None:
+            return False
+        if self.attempts >= self.MAX_ATTEMPTS:
+            return False
+        return self.expires_at > timezone.now()
+
+    def matches(self, code):
+        """Whether this is the code, counting the try either way.
+
+        Counted before the comparison, so a wrong guess costs an attempt even
+        if the process dies immediately afterwards.
+        """
+        self.attempts += 1
+        self.save(update_fields=['attempts'])
+        return check_password(code, self.code_hash)
+
+    def spend(self):
+        self.used_at = timezone.now()
+        self.save(update_fields=['used_at'])
+
+    @classmethod
+    def issue(cls, user):
+        """A fresh code for this person, replacing any they already had.
+
+        Returns (row, plain code). The plain code exists only long enough to
+        be put in an email; nothing stores it.
+        """
+        cls.objects.filter(user=user, used_at__isnull=True).update(used_at=timezone.now())
+        code = '{0:06d}'.format(secrets.randbelow(1000000))
+        row = cls.objects.create(
+            user=user,
+            code_hash=make_password(code),
+            expires_at=timezone.now() + timezone.timedelta(minutes=cls.LIFETIME_MINUTES),
+        )
+        return row, code
 
 
 class KycResponse(models.Model):

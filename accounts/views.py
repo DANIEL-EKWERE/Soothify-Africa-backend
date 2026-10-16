@@ -1,5 +1,7 @@
 """/api/v1/auth/ -- register, sign in, sign out, me, KYC."""
 
+import logging
+
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
@@ -10,15 +12,22 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import KycResponse, Profile
+from api import jobs
+
+from .emails import send_reset_code
+from .models import KycResponse, PasswordResetCode, Profile
 from .social import profile_for, verify_apple, verify_google
 from .serializers import (
     KycSerializer,
     LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     ProfileSerializer,
     RegisterSerializer,
     tokens_for,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _session_payload(profile, request):
@@ -203,3 +212,76 @@ class EmailAvailableView(APIView):
             email__iexact=email,
         ).exists()
         return Response({'email': email, 'available': not taken})
+
+class PasswordResetRequestView(APIView):
+    """Start a reset: emails a six-digit code.
+
+    Always answers the same way, whether or not the address has an account.
+    Saying "no account with that email" turns this endpoint into a way to
+    find out who is a member -- which, for a mental-health app, is a
+    disclosure worth more than the small convenience of a clearer message.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    ANSWER = {
+        'detail': 'If that address has an account, a code is on its way.',
+    }
+
+    def post(self, request):
+        form = PasswordResetRequestSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+
+        email = form.validated_data['email'].strip().lower()
+        user = get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+        if user is not None:
+            if user.has_usable_password():
+                code_row, code = PasswordResetCode.issue(user)
+                jobs.run(send_reset_code, user.pk, code)
+            else:
+                # Signed up with Google or Apple: there is no password to
+                # reset, and sending a code would start a journey that ends
+                # in confusion. Say nothing different to the caller.
+                logger.info('reset asked for a social-only account: %s', user.pk)
+
+        return Response(self.ANSWER)
+
+
+class PasswordResetConfirmView(APIView):
+    """Finish a reset: the code, and the new password."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    REFUSED = {'detail': 'That code is wrong or has expired. Ask for a new one.'}
+
+    def post(self, request):
+        form = PasswordResetConfirmSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+
+        email = form.validated_data['email'].strip().lower()
+        user = get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+        if user is None:
+            return Response(self.REFUSED, status=status.HTTP_400_BAD_REQUEST)
+
+        code_row = PasswordResetCode.objects.filter(user=user).first()
+        if code_row is None or not code_row.is_usable:
+            return Response(self.REFUSED, status=status.HTTP_400_BAD_REQUEST)
+
+        if not code_row.matches(form.validated_data['code']):
+            return Response(self.REFUSED, status=status.HTTP_400_BAD_REQUEST)
+
+        code_row.spend()
+        user.set_password(form.validated_data['password'])
+        user.save(update_fields=['password'])
+
+        # Signed in straight away: they have just proved they hold the email
+        # and chosen a password, so asking them to type it again is friction
+        # for its own sake.
+        profile = getattr(user, 'profile', None) or Profile.objects.create(
+            user=user, full_name=user.get_full_name(),
+        )
+        return Response(_session_payload(profile, request))
