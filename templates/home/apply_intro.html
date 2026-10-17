@@ -1,0 +1,37 @@
+{% extends "home/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% translate "Join the Soothify Expert Network" %} — Soothify Africa{% endblock %}
+{% block description %}{% translate "Therapists, yoga teachers and Pilates instructors: apply to take sessions on Soothify Africa. We read every application within 24 to 48 hours." %}{% endblock %}
+
+{% block header %}
+  <header class="page-head page-head--light">{% include "home/_nav.html" with theme="light" closeable=True %}</header>
+{% endblock %}
+
+{% comment %}
+  The app's own first screen — Figma `259:59132`. Same title, same blurb,
+  same artwork, same two actions, so somebody who starts here and finishes
+  in the app recognises where they are.
+{% endcomment %}
+{% block body %}
+<main class="xp">
+  <div class="xp__col xp__col--intro">
+    <h1 class="xp-intro__title">{% translate "Join the Soothify Expert Network" %}</h1>
+
+    <p class="xp-intro__body">
+      {% blocktranslate trimmed %}
+        Bring your practice to a global audience. Help clients heal and grow
+        in English or Pidgin.
+      {% endblocktranslate %}
+    </p>
+
+    <img class="xp-intro__art" src="{% static 'img/expert-network.png' %}"
+         alt="{% translate 'Practitioners on Soothify' %}" width="346" height="346">
+
+    <a class="xp-btn" href="{% url 'home:practitioner_apply_step' 1 %}">{% translate "Start Application" %}</a>
+    <a class="xp-btn xp-btn--ghost" href="{% url 'home:landing' %}">{% translate "Back" %}</a>
+  </div>
+</main>
+{% endblock %}
+
+{% block footer %}{% include "home/_footer.html" with cta=False %}{% endblock %}

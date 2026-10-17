@@ -21,6 +21,8 @@ urlpatterns = [
     path('experts/me/payouts/', views.MyPayoutsView.as_view(), name='my-payouts'),
     path('experts/me/payout-methods/', views.MyPayoutMethodsView.as_view(),
          name='my-payout-methods'),
+    # The banks a payout account can be at, asked of Bachs.
+    path('experts/me/banks/', views.MyBanksView.as_view(), name='my-banks'),
 
     path('experts/<int:pk>/', views.ExpertDetailView.as_view(), name='detail'),
     path('experts/<int:pk>/slots/', views.ExpertSlotsView.as_view(), name='slots'),

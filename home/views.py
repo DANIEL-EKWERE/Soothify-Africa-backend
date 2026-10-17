@@ -4,6 +4,17 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import get_language, gettext, gettext_lazy as _
 
+from api import jobs
+from experts.emails import send_application_received, tell_the_team
+from experts.forms import (
+    MAX_UPLOAD_BYTES,
+    ApplicationStepOneForm,
+    ApplicationStepThreeForm,
+    ApplicationStepTwoForm,
+    save_application,
+)
+from experts.models import Application
+
 from .emails import send_welcome_email
 from .forms import WaitlistForm
 from .models import REFERRAL_BOOST, WaitlistSignup
@@ -155,3 +166,102 @@ def waitlist_done(request):
             'body': f'{message} {share_url}',
         }),
     })
+
+
+# --- practitioners ---------------------------------------------------------
+
+_SESSION_DRAFT = 'practitioner_application'        # answers, between steps
+_SESSION_APPLICATION = 'practitioner_application_id'   # the one just sent
+
+#: The three steps, in the app's order: who you are, what you speak, proof.
+APPLICATION_STEPS = (
+    ApplicationStepOneForm,
+    ApplicationStepTwoForm,
+    ApplicationStepThreeForm,
+)
+
+
+def practitioner_apply(request):
+    """The intro — Figma `259:59132`, the app's own first screen.
+
+    A page of its own rather than the top of the form, as in the app: what
+    is being asked for is a certificate and a government ID, and somebody
+    should know that before the first question.
+    """
+    # Starting again starts again: a draft left from a previous visit would
+    # quietly pre-fill a form the person thinks is blank.
+    request.session.pop(_SESSION_DRAFT, None)
+    return render(request, 'home/apply_intro.html')
+
+
+def practitioner_apply_step(request, step):
+    """One step of three — `259:59145`, `259:59179`, `259:59198`.
+
+    The answers live in the session until the last step, which is where the
+    two files arrive and the application is created. Sending the files
+    earlier would mean holding somebody's passport scan in a half-finished
+    application.
+    """
+    if step not in (1, 2, 3):
+        return redirect('home:practitioner_apply')
+
+    draft = request.session.get(_SESSION_DRAFT) or {}
+
+    # No stepping ahead: step three with nothing behind it would create an
+    # application with no name on it.
+    if step > 1 and not draft.get('full_name'):
+        return redirect('home:practitioner_apply_step', step=1)
+    if step > 2 and not draft.get('languages'):
+        return redirect('home:practitioner_apply_step', step=2)
+
+    form_class = APPLICATION_STEPS[step - 1]
+
+    if request.method == 'POST':
+        form = form_class(request.POST, request.FILES)
+        if form.is_valid():
+            answers = dict(form.cleaned_data)
+            # Neither of these belongs in the session: the files are files,
+            # and the honeypot is not an answer.
+            files = {
+                'certification': answers.pop('certification', None),
+                'identity': answers.pop('identity', None),
+            }
+            answers.pop('website', None)
+            answers.pop('agreed', None)
+
+            draft.update(answers)
+
+            if step < len(APPLICATION_STEPS):
+                request.session[_SESSION_DRAFT] = draft
+                return redirect('home:practitioner_apply_step', step=step + 1)
+
+            application = save_application(draft, files)
+            request.session.pop(_SESSION_DRAFT, None)
+            request.session[_SESSION_APPLICATION] = application.pk
+            # After the row is saved, and never allowed to undo it: somebody
+            # who sent their certificate and got an error instead of an
+            # acknowledgement would send it again.
+            jobs.run(send_application_received, application.pk)
+            tell_the_team(application)
+            return redirect('home:practitioner_apply_done')
+    else:
+        form = form_class(initial=draft)
+
+    return render(request, 'home/apply_step.html', {
+        'form': form,
+        'step': step,
+        'total_steps': len(APPLICATION_STEPS),
+        'max_upload_mb': MAX_UPLOAD_BYTES // (1024 * 1024),
+        'is_last': step == len(APPLICATION_STEPS),
+    })
+
+
+def practitioner_apply_done(request):
+    """The acknowledgement — `259:59229`, in the app's own words."""
+    application = Application.objects.filter(
+        pk=request.session.get(_SESSION_APPLICATION),
+    ).first()
+    if application is None:
+        return redirect('home:practitioner_apply')
+
+    return render(request, 'home/apply_done.html', {'application': application})

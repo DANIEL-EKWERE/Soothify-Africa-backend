@@ -12,6 +12,8 @@ urlpatterns = [
 
     path('membership/', views.MembershipView.as_view(), name='membership'),
     path('membership/cancel/', views.cancel_membership, name='membership-cancel'),
+    # Changing the card on file. The same small check as the free week.
+    path('card/', views.ReplaceCardView.as_view(), name='card'),
     path('invoices/', views.InvoiceListView.as_view(), name='invoices'),
 
     path('checkout/', views.CheckoutView.as_view(), name='checkout'),

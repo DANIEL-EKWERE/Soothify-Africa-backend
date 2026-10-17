@@ -1,0 +1,102 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ application.full_name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>{{ application.full_name }}</h1>
+    <p>
+      Applied {{ application.created_at|date:"j M Y" }} from the
+      {% if application.source == "web" %}website{% else %}app{% endif %}.
+      {% if application.status == "approved" %}<span class="pill pill--good">Approved</span>
+      {% elif application.status == "rejected" %}<span class="pill pill--bad">Turned down</span>
+      {% else %}<span class="pill pill--warn">Waiting</span>{% endif %}
+    </p>
+  </div>
+  <a class="btn btn--quiet btn--small" href="{% url 'dashboard:applications' %}">All applications</a>
+</div>
+
+<section class="panel" style="margin-bottom:20px">
+  <div class="panel__head"><div><h2>What they told us</h2></div></div>
+  <div class="panel__body">
+    <table class="table">
+      <tbody>
+        <tr><td style="width:220px">Practises</td><td>{{ application.disciplines_display|default:"—" }}</td></tr>
+        <tr><td>Languages</td><td>{{ application.languages_display|default:"—" }}</td></tr>
+        <tr><td>Years practising</td><td>{{ application.experience_years }}</td></tr>
+        <tr><td>Email</td><td>{{ application.email|default:"—" }}</td></tr>
+        <tr><td>Phone</td><td>{{ application.phone|default:"—" }}</td></tr>
+        <tr><td>Licence number</td><td>{{ application.licence_number|default:"—" }}</td></tr>
+        <tr><td>Insurance</td><td>{{ application.insurance_provider|default:"—" }}</td></tr>
+        <tr><td>Portfolio</td><td>
+          {% if application.portfolio_url %}
+            <a href="{{ application.portfolio_url }}" target="_blank" rel="noopener noreferrer">{{ application.portfolio_url }}</a>
+          {% else %}—{% endif %}
+        </td></tr>
+        <tr><td>About their practice</td><td>{{ application.bio|linebreaksbr|default:"—" }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel" style="margin-bottom:20px">
+  <div class="panel__head">
+    <div>
+      <h2>Credentials</h2>
+      <p>These links expire. They are a certificate and a government ID — do not forward them.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <tbody>
+      {% for document in documents %}
+        <tr>
+          <td>{{ document.kind }}</td>
+          <td style="width:160px"><span class="table__sub">{{ document.uploaded_at|date:"j M Y" }}</span></td>
+          <td style="width:110px;text-align:right">
+            <a class="btn btn--quiet btn--small" href="{{ document.url }}" target="_blank" rel="noopener noreferrer">Open</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" class="table__empty">No documents, which means this cannot be reviewed. Write and ask.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if application.status == "submitted" or application.status == "reviewing" %}
+<section class="panel">
+  <div class="panel__head">
+    <div>
+      <h2>Your decision</h2>
+      <p>Approving makes this a practitioner account and lets clients book them.</p>
+    </div>
+  </div>
+  <div class="panel__body">
+    <form method="post" action="{% url 'dashboard:application-decide' application.pk %}">
+      {% csrf_token %}
+      <div class="field">
+        <label for="notes">Notes (for us, never sent to them)</label>
+        <textarea id="notes" name="notes" rows="3" placeholder="What decided it.">{{ application.review_notes }}</textarea>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px">
+        <button class="btn" type="submit" name="decision" value="approve">Approve</button>
+        <button class="btn btn--quiet" type="submit" name="decision" value="reject">Turn down</button>
+      </div>
+      {% if not application.user_id %}
+        <p class="note" style="margin-top:16px">
+          This application came from the website, so there is no account yet.
+          Approving makes one with no password and emails them a code to set one.
+        </p>
+      {% endif %}
+    </form>
+  </div>
+</section>
+{% elif application.review_notes %}
+<section class="panel">
+  <div class="panel__head"><div><h2>Why</h2></div></div>
+  <div class="panel__body"><p>{{ application.review_notes|linebreaksbr }}</p></div>
+</section>
+{% endif %}
+{% endblock %}

@@ -9,7 +9,10 @@ no kobo anywhere, so storing minor units would invent precision the product
 does not have.
 """
 
+import secrets
+
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Sum
@@ -90,8 +93,28 @@ class ExpertProfile(models.Model):
         self.save(update_fields=['rating_average', 'rating_count'])
 
 
+def _in_words(choices, keys):
+    """Stored keys as the labels a person reads, in the order given."""
+    labels = dict(choices)
+    return ', '.join(str(labels.get(key, key)) for key in (keys or []))
+
+
 def application_document_path(instance, filename):
-    return 'expert-applications/{0}/{1}'.format(instance.application_id, filename)
+    """Where a certificate or an ID is stored.
+
+    Under `private/`, which is the one prefix a web server can be told to
+    refuse in a single rule -- these are the most sensitive files the system
+    holds, and the only way they are meant to be read is a signed link
+    (api/media.py) issued to staff.
+
+    The name carries eight random characters as well as the application's
+    id: ids are sequential, and a guessable path is the whole risk if that
+    prefix is ever exposed by a misconfiguration.
+    """
+    stem = secrets.token_urlsafe(6)
+    return 'private/expert-applications/{0}/{1}-{2}'.format(
+        instance.application_id, stem, filename,
+    )
 
 
 class Application(models.Model):
@@ -109,14 +132,52 @@ class Application(models.Model):
         ('rejected', _('Rejected')),
     )
 
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='expert_applications',
+    SOURCES = (
+        ('app', _('From the app')),
+        ('web', _('From the website')),
     )
+
+    # Null for an application sent from the website: a practitioner should
+    # not have to make a client account before asking to practise, and the
+    # account is created when the application is approved.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='expert_applications', null=True, blank=True,
+    )
+    source = models.CharField(
+        _('came from'), max_length=10, choices=SOURCES, default='app',
+    )
+
     full_name = models.CharField(_('full name'), max_length=120)
-    field = models.CharField(_('practises'), max_length=20, choices=Discipline.choices)
+
+    # How to reach them. Taken from the account for an application sent from
+    # the app, and asked for on the website, where there is no account to
+    # take it from.
+    # Blank only so the column could be added to rows that predate it --
+    # those are backfilled from their account in the same migration. Both
+    # ways in fill it: the API from the account, the website from the form.
+    email = models.EmailField(_('email'), blank=True)
+    phone = models.CharField(_('phone'), max_length=40, blank=True)
+
+    # More than one, because people are: a licensed therapist who also
+    # teaches yoga is ordinary here, and the form asks for "areas of
+    # expertise". Held as a list of Discipline values, like `languages`.
+    disciplines = models.JSONField(_('practises'), default=list)
+
     languages = models.JSONField(_('languages'), default=list)
     experience_years = models.PositiveSmallIntegerField(_('years practising'), default=0)
     bio = models.TextField(_('about'), blank=True)
+
+    # The rest of what the form asks for. All optional: an application
+    # missing a portfolio can still be reviewed, and one missing a licence
+    # number has the certificate attached instead.
+    portfolio_url = models.URLField(_('portfolio or website'), blank=True)
+    licence_number = models.CharField(
+        _('licence number'), max_length=80, blank=True,
+    )
+    insurance_provider = models.CharField(
+        _('insurance'), max_length=120, blank=True,
+    )
 
     status = models.CharField(_('status'), max_length=20, choices=STATUS, default='submitted')
     review_notes = models.TextField(
@@ -134,9 +195,96 @@ class Application(models.Model):
         ordering = ('-created_at',)
         verbose_name = _('expert application')
         verbose_name_plural = _('expert applications')
+        indexes = [models.Index(fields=['email'])]
 
     def __str__(self):
         return '{0} ({1})'.format(self.full_name, self.get_status_display())
+
+    def approve(self, reviewer=None, notes=''):
+        """Take them on.
+
+        Three things have to be true afterwards: there is an account, it is
+        a practitioner's, and there is an ExpertProfile for clients to be
+        matched with. An application from the website has no account yet, so
+        one is made -- with no usable password, because nobody has chosen it.
+        Setting one is the applicant's own errand, through the ordinary
+        password reset.
+
+        Returns (profile, was_invited). `was_invited` is True when an
+        account was created here, which is what tells the caller to send
+        them a way in.
+        """
+        from accounts.models import Profile, Role
+
+        invited = False
+        user = self.user
+        if user is None:
+            model = get_user_model()
+            user = model.objects.filter(email__iexact=self.email).first()
+            if user is None:
+                user = model.objects.create_user(
+                    username=self.email[:150], email=self.email,
+                )
+                # No password at all: one that nobody chose is one that
+                # somebody else might guess.
+                user.set_unusable_password()
+                user.save(update_fields=['password'])
+                invited = True
+            self.user = user
+
+        profile = getattr(user, 'profile', None) or Profile.objects.create(
+            user=user, full_name=self.full_name,
+        )
+        profile.role = Role.PRACTITIONER
+        if not profile.full_name:
+            profile.full_name = self.full_name
+        profile.save(update_fields=['role', 'full_name'])
+
+        ExpertProfile.objects.get_or_create(
+            profile=profile,
+            defaults={
+                'disciplines': list(self.disciplines or []),
+                'languages': list(self.languages or []),
+                'years_experience': self.experience_years,
+                'bio': self.bio,
+            },
+        )
+
+        self.status = 'approved'
+        self.reviewed_by = reviewer
+        self.reviewed_at = timezone.now()
+        if notes:
+            self.review_notes = notes
+        self.save(update_fields=[
+            'user', 'status', 'reviewed_by', 'reviewed_at', 'review_notes',
+        ])
+        return profile, invited
+
+    def reject(self, reviewer=None, notes=''):
+        """Turn it down, with the reason kept for us rather than for them.
+
+        The applicant is written to separately and in our own words: review
+        notes are candid, and candour written for colleagues does not belong
+        in somebody's inbox.
+        """
+        self.status = 'rejected'
+        self.reviewed_by = reviewer
+        self.reviewed_at = timezone.now()
+        if notes:
+            self.review_notes = notes
+        self.save(update_fields=[
+            'status', 'reviewed_by', 'reviewed_at', 'review_notes',
+        ])
+
+    @property
+    def disciplines_display(self):
+        """What they practise, in words, for the dashboard and the admin."""
+        return _in_words(Discipline.choices, self.disciplines)
+
+    @property
+    def languages_display(self):
+        """The languages, in words. "english, pidgin" is a storage detail."""
+        return _in_words(SessionLanguage.choices, self.languages)
 
 
 class ApplicationDocument(models.Model):
@@ -309,13 +457,14 @@ class SessionNote(models.Model):
 class PayoutMethod(models.Model):
     """Where an expert is paid.
 
-    Only the last four digits of an account are kept: the full number is
-    Paystack's to hold, and "Bank ****1234" is all the screen ever shows.
+    Only the last four digits of an account are kept: the full number goes
+    to Bachs once, to make a payout destination, and "Bank ****1234" is all
+    any screen ever shows.
     """
 
     KINDS = (
         ('bank', _('Bank Transfer')),
-        ('card', _('Paystack Card')),
+        ('card', _('Card')),
         ('mobile', _('Mobile Money (USSD)')),
     )
 
@@ -327,9 +476,11 @@ class PayoutMethod(models.Model):
     account_name = models.CharField(_('account name'), max_length=120, blank=True)
     last4 = models.CharField(_('last four digits'), max_length=4, blank=True)
 
-    # Paystack's handle for the destination. The account number itself is sent
-    # once, to them, and never stored here.
-    recipient_code = models.CharField(_('Paystack recipient'), max_length=80, blank=True)
+    # Bachs' handle for the destination, from create_payout_destination. The
+    # account number itself is sent once, to them, and never stored here.
+    destination_id = models.CharField(
+        _('Bachs destination'), max_length=80, blank=True,
+    )
 
     is_default = models.BooleanField(_('default'), default=True)
     created_at = models.DateTimeField(auto_now_add=True)

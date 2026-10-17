@@ -13,9 +13,11 @@ import json
 import time
 from unittest.mock import patch
 
-from django.test import override_settings
+from django.test import override_settings, SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
+
+from django.contrib.auth import get_user_model
 
 from accounts.models import Profile, Role
 from api.testing import ApiTestCase
@@ -53,7 +55,15 @@ def make_plans():
     return core
 
 
-@override_settings(BACHS_SECRET_KEY=SECRET, BACHS_WEBHOOK_SECRET=WEBHOOK_SECRET)
+# These cover the arrangement where Bachs runs the cycle. It is not what
+# the site is set to while NGN subscriptions are refused, so it is pinned
+# here rather than inherited -- the one-period-at-a-time path has its own
+# case below.
+@override_settings(
+    BACHS_SECRET_KEY=SECRET,
+    BACHS_WEBHOOK_SECRET=WEBHOOK_SECRET,
+    MEMBERSHIP_BILLING='subscription',
+)
 class BillingTestCase(ApiTestCase):
     def setUp(self):
         super().setUp()
@@ -186,6 +196,45 @@ class CheckoutTests(BillingTestCase):
 
         self.assertEqual(response.status_code, 502)
         self.assertEqual(Payment.objects.get().status, 'failed')
+
+
+class RefusalWordingTests(SimpleTestCase):
+    """What a refusal from Bachs is turned into before the app sees it."""
+
+    def test_the_reason_is_read_from_whichever_key_carries_it(self):
+        from billing.bachs import _message
+
+        # Their checkout endpoint answers with `detail`; reading only
+        # `message` and `error` lost the reason and left every refusal
+        # reading "Bachs refused the request."
+        self.assertEqual(
+            _message('{"detail": "That product is archived"}'),
+            'That product is archived',
+        )
+        self.assertEqual(
+            _message('{"message": "Bad key"}'), 'Bad key',
+        )
+        self.assertEqual(
+            _message('{"error": {"message": "Nested"}}'), 'Nested',
+        )
+
+    def test_a_known_limitation_is_said_in_our_own_words(self):
+        from billing.bachs import _message
+
+        answer = _message(
+            '{"detail": "NGN subscriptions are not available right now",'
+            ' "error_code": "NGN_SUBSCRIPTIONS_NOT_ENABLED"}'
+        )
+
+        # The person holding the phone is not integrating an API, and can
+        # still book a session -- which is the part worth telling them.
+        self.assertIn('naira', answer)
+        self.assertIn('Single sessions', answer)
+
+    def test_a_body_that_is_not_json_says_nothing_rather_than_guessing(self):
+        from billing.bachs import _message
+
+        self.assertEqual(_message('<html>502 Bad Gateway</html>'), '')
 
 
 class TrialTests(BillingTestCase):
@@ -540,3 +589,847 @@ class PaidContentTests(BillingTestCase):
         response = self.client.get(self.url, HTTP_AUTHORIZATION=self.token)
 
         self.assertEqual(response.json()['media_url'], 'https://cdn/x.mp3')
+
+
+@override_settings(
+    BACHS_SECRET_KEY=SECRET,
+    BACHS_WEBHOOK_SECRET=WEBHOOK_SECRET,
+    MEMBERSHIP_BILLING='one_off',
+    # The card check has its own case below; these are about what a period
+    # costs and what a payment buys.
+    TRIAL_REQUIRES_CARD=False,
+)
+class OnePeriodAtATimeTests(BillingTestCase):
+    """Memberships sold one period at a time, which is how they are sold now.
+
+    Bachs refuse recurring charges in naira on this account, so nothing
+    renews itself: the free week is given outright, a period is bought with
+    the same plain charge a session uses, and a job reminds the member
+    before it runs out.
+    """
+
+    def buy(self, **overrides):
+        """Ask to start a membership, with Bachs' one-off checkout stubbed."""
+        payload = {'plan': 'core', 'cadence': 'annual', 'trial': True}
+        payload.update(overrides)
+        with patch('billing.bachs.checkout_for_amount', return_value=CHECKOUT) as call:
+            response = self.client.post(
+                reverse('api:billing:checkout'), payload,
+                content_type='application/json', HTTP_AUTHORIZATION=self.token,
+            )
+        self.bachs_call = call
+        return response
+
+    def membership(self):
+        return Membership.objects.get(user=self.user)
+
+    # ----------------------------------------------------------- the trial
+
+    def test_the_free_week_is_given_outright_with_nothing_to_pay(self):
+        with patch('billing.bachs.checkout_for_amount') as never:
+            response = self.client.post(
+                reverse('api:billing:checkout'),
+                {'plan': 'core', 'cadence': 'annual', 'trial': True},
+                content_type='application/json', HTTP_AUTHORIZATION=self.token,
+            )
+
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        # No card to save, so no checkout to open and nothing to wait for.
+        never.assert_not_called()
+        self.assertTrue(body['trial_started'])
+        self.assertEqual(body['checkout_url'], '')
+        self.assertEqual(body['due_today_naira'], 0)
+
+        membership = self.membership()
+        self.assertEqual(membership.state, 'trial')
+        self.assertTrue(membership.is_active)
+        self.assertFalse(membership.auto_renew)
+        self.assertIsNotNone(membership.trial_started_at)
+
+    def test_the_free_week_leaves_no_invoice_because_nothing_was_charged(self):
+        self.buy()
+
+        self.assertFalse(Payment.objects.exists())
+
+    def test_a_second_free_week_sells_a_period_instead(self):
+        self.buy()
+        membership = self.membership()
+        membership.lapse()
+
+        response = self.buy()
+
+        body = response.json()
+        self.assertFalse(body['trial_started'])
+        self.assertEqual(body['checkout_url'], CHECKOUT['checkout_url'])
+        # The whole period is due now; there is no free week left to give.
+        self.assertEqual(body['due_today_naira'], 150000)
+        self.assertFalse(self.membership().is_active)
+
+    def test_the_offer_says_whether_a_free_week_is_still_going(self):
+        before = self.client.get(
+            reverse('api:billing:membership'), HTTP_AUTHORIZATION=self.token,
+        ).json()
+        self.assertTrue(before['trial_available'])
+
+        self.buy()
+
+        after = self.client.get(
+            reverse('api:billing:membership'), HTTP_AUTHORIZATION=self.token,
+        ).json()
+        self.assertFalse(after['trial_available'])
+        self.assertFalse(after['auto_renew'])
+
+    # ---------------------------------------------------------- buying one
+
+    def test_buying_a_period_charges_the_plan_price(self):
+        response = self.buy(trial=False)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.bachs_call.call_args.kwargs['naira'], 150000)
+        self.assertEqual(response.json()['amount_naira'], 150000)
+        # A plain charge, not a product: their recurring products refuse naira.
+        self.assertEqual(Payment.objects.get().kind, 'membership')
+
+    def test_a_promo_code_comes_off_the_price(self):
+        PromoCode.objects.create(code='CALM20', percent_off=20, is_active=True)
+
+        response = self.buy(trial=False, promo_code='CALM20')
+
+        self.assertEqual(response.json()['amount_naira'], 120000)
+        self.assertEqual(self.bachs_call.call_args.kwargs['naira'], 120000)
+
+    def test_a_checkout_alone_grants_nothing(self):
+        self.buy(trial=False)
+
+        self.assertEqual(self.membership().state, 'inactive')
+        self.assertEqual(Payment.objects.get().status, 'pending')
+
+    def test_the_webhook_grants_exactly_one_period(self):
+        self.buy(trial=False)
+
+        self.post_webhook('collection.succeeded', {
+            'reference': Payment.objects.get().reference,
+            'payment_method': {'brand': 'visa', 'last4': '4242'},
+        })
+
+        membership = self.membership()
+        self.assertEqual(membership.state, 'active')
+        self.assertFalse(membership.auto_renew, 'nothing renews itself here')
+        # An annual plan buys a year, worked out from the cadence since no
+        # subscription exists to tell us.
+        self.assertAlmostEqual(
+            (membership.renews_at - timezone.now()).days, 365, delta=1,
+        )
+        self.assertEqual(Payment.objects.get().status, 'paid')
+
+    def test_a_repeated_delivery_does_not_buy_a_second_period(self):
+        self.buy(trial=False)
+        reference = Payment.objects.get().reference
+        event = {'reference': reference, 'payment_method': {'last4': '4242'}}
+
+        self.post_webhook('collection.succeeded', event)
+        first = self.membership().renews_at
+        self.post_webhook('collection.succeeded', event)
+
+        self.assertEqual(self.membership().renews_at, first)
+
+    def test_a_period_bought_after_the_free_week_runs_from_today(self):
+        self.buy()                       # the free week
+        membership = self.membership()
+        membership.lapse()
+
+        self.buy()                       # now a real period
+        self.post_webhook('collection.succeeded', {
+            'reference': Payment.objects.get().reference,
+        })
+
+        self.assertEqual(self.membership().state, 'active')
+
+
+@override_settings(
+    BACHS_SECRET_KEY=SECRET,
+    BACHS_WEBHOOK_SECRET=WEBHOOK_SECRET,
+    MEMBERSHIP_BILLING='one_off',
+)
+class RenewalRemindersTests(BillingTestCase):
+    """The jobs that stand in for a subscription: a warning, then an ending."""
+
+    def today_at(self, hour):
+        return timezone.now().replace(
+            hour=hour, minute=0, second=0, microsecond=0,
+        )
+
+    def at(self, moment):
+        """Run the jobs as though it were `moment`."""
+        return patch('billing.tasks.timezone.now', return_value=moment)
+
+    def member(self, state='active', days=2, auto_renew=False, reminded_at=None):
+        """A member whose period ends at six in the evening, `days` from now.
+
+        A fixed hour, and the jobs run at a fixed hour too: the rule is
+        about calendar days, and a period ending at one in the morning falls
+        on a different day from one ending at eleven at night. Without this
+        the suite would pass or fail by the time of day it was run.
+        """
+        membership = Membership.objects.get_or_create(user=self.user)[0]
+        membership.plan = self.plan
+        membership.state = state
+        membership.auto_renew = auto_renew
+        membership.renews_at = self.today_at(18) + datetime.timedelta(days=days)
+        membership.reminded_at = reminded_at
+        membership.save()
+        return membership
+
+    def notifications(self):
+        from notifications.models import Notification
+
+        return Notification.objects.filter(user=self.user)
+
+    def test_a_member_is_warned_while_there_is_time_to_act(self):
+        from billing.tasks import send_renewal_reminders
+
+        self.member(days=2)
+
+        with self.at(self.today_at(6)):
+            self.assertEqual(send_renewal_reminders(), 1)
+        notice = self.notifications().get()
+        self.assertIn('ends', notice.title)
+        self.assertIn('150,000', notice.body)
+
+    def test_two_days_off_is_worded_as_two_days(self):
+        from billing.tasks import send_renewal_reminders
+
+        # The wording and the decision have to count the same way. Counting
+        # elapsed hours for one and calendar days for the other had a
+        # reminder sent two days ahead saying "tomorrow", because 47h59m is
+        # one day and a bit.
+        self.member(days=2)
+
+        with self.at(self.today_at(6)):
+            send_renewal_reminders()
+
+        self.assertIn('in 2 days', self.notifications().get().body)
+
+    def test_the_free_week_ending_is_worded_as_a_free_week(self):
+        from billing.tasks import send_renewal_reminders
+
+        self.member(state='trial', days=0)
+
+        with self.at(self.today_at(6)):
+            send_renewal_reminders()
+
+        self.assertIn('free week', self.notifications().get().title)
+
+    def test_nobody_is_told_the_same_thing_twice_in_a_day(self):
+        from billing.tasks import send_renewal_reminders
+
+        self.member(days=2)
+
+        with self.at(self.today_at(6)):
+            send_renewal_reminders()
+            self.assertEqual(send_renewal_reminders(), 0)
+        self.assertEqual(self.notifications().count(), 1)
+
+    def test_a_subscription_of_theirs_warns_for_itself(self):
+        from billing.tasks import send_renewal_reminders
+
+        # Bachs run their own subscriptions, warnings included; two
+        # warnings is worse than one.
+        membership = self.member(days=2, auto_renew=True)
+        membership.subscription_id = 'sub_123'
+        membership.save(update_fields=['subscription_id'])
+
+        with self.at(self.today_at(6)):
+            self.assertEqual(send_renewal_reminders(), 0)
+
+    def test_a_period_with_weeks_left_is_not_mentioned_yet(self):
+        from billing.tasks import send_renewal_reminders
+
+        self.member(days=30)
+
+        with self.at(self.today_at(6)):
+            self.assertEqual(send_renewal_reminders(), 0)
+
+    def test_a_period_that_ran_out_ends_the_access_it_paid_for(self):
+        from billing.tasks import expire_lapsed_memberships
+
+        self.member(days=-1)
+
+        with self.at(self.today_at(6)):
+            self.assertEqual(expire_lapsed_memberships(), 1)
+        membership = Membership.objects.get(user=self.user)
+        self.assertEqual(membership.state, 'inactive')
+        self.assertFalse(membership.is_active)
+        # And they are told, rather than finding out by being locked out.
+        self.assertEqual(self.notifications().count(), 1)
+
+    def test_an_overdue_subscription_is_left_to_the_reconciler(self):
+        from billing.tasks import expire_lapsed_memberships
+
+        # Bachs may simply be a few minutes behind with the renewal.
+        self.member(days=-1, auto_renew=True)
+
+        with self.at(self.today_at(6)):
+            self.assertEqual(expire_lapsed_memberships(), 0)
+        self.assertEqual(Membership.objects.get(user=self.user).state, 'active')
+
+    def test_a_member_in_good_standing_is_not_ended(self):
+        from billing.tasks import expire_lapsed_memberships
+
+        self.member(days=10)
+
+        with self.at(self.today_at(6)):
+            self.assertEqual(expire_lapsed_memberships(), 0)
+
+
+@override_settings(
+    BACHS_SECRET_KEY=SECRET,
+    BACHS_WEBHOOK_SECRET=WEBHOOK_SECRET,
+    MEMBERSHIP_BILLING='one_off',
+    TRIAL_REQUIRES_CARD=True,
+    TRIAL_CARD_CHECK_NAIRA=100,
+)
+class CardCheckedTrialTests(BillingTestCase):
+    """The free week, behind a card.
+
+    An email address costs nothing, so a free week per address is a free
+    library. A card is asked for to make the second one visible. Nothing is
+    kept: the hundred naira that proves the card is given straight back,
+    because Bachs offer no way to check a naira card for nothing.
+    """
+
+    CARD = {
+        'payment_method_id': 'pm_123',
+        'type': 'card',
+        'card_brand': 'visa',
+        'card_last4': '4242',
+        'card_exp_month': 11,
+        'card_exp_year': 2030,
+        'is_default': True,
+    }
+
+    def ask_for_the_week(self, token=None):
+        with patch('billing.bachs.checkout_saving_card', return_value=CHECKOUT) as call:
+            response = self.client.post(
+                reverse('api:billing:checkout'),
+                {'plan': 'core', 'cadence': 'annual', 'trial': True},
+                content_type='application/json',
+                HTTP_AUTHORIZATION=token or self.token,
+            )
+        self.bachs_call = call
+        return response
+
+    def card_arrives(self, email=None, customer_id=None, **overrides):
+        """The `payment_method.saved` delivery, as Bachs describes it.
+
+        Each address is its own customer there, so the id follows the email
+        rather than being shared -- which is what makes two accounts on one
+        card distinguishable only by the card itself.
+        """
+        email = email or self.user.email
+        data = dict(self.CARD, customer={
+            'id': customer_id or 'cust_{0}'.format(abs(hash(email)) % 10000),
+            'email': email,
+        })
+        data.update(overrides)
+        return self.post_webhook('payment_method.saved', data)
+
+    def membership(self, user=None):
+        return Membership.objects.get(user=user or self.user)
+
+    # ------------------------------------------------------- asking for it
+
+    def test_the_week_begins_with_a_card_not_a_promise(self):
+        response = self.ask_for_the_week()
+
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertTrue(body['card_check'])
+        self.assertEqual(body['card_check_naira'], 100)
+        self.assertEqual(body['checkout_url'], CHECKOUT['checkout_url'])
+        # Nothing is being bought, so nothing is due.
+        self.assertEqual(body['due_today_naira'], 0)
+        # And the week has not started: an unfinished checkout is not a card.
+        self.assertEqual(self.membership().state, 'inactive')
+
+    def test_the_charge_is_the_smallest_bachs_allow_and_keeps_the_card(self):
+        self.ask_for_the_week()
+
+        self.assertEqual(self.bachs_call.call_args.kwargs['naira'], 100)
+        self.assertEqual(Payment.objects.get().kind, 'card_check')
+
+    def test_abandoning_the_checkout_grants_nothing(self):
+        self.ask_for_the_week()
+
+        # A checkout nobody finished is not a card, so the week is still
+        # there to be taken.
+        self.assertEqual(self.membership().state, 'inactive')
+        self.assertFalse(self.membership().trial_used)
+
+    # ------------------------------------------------------- the card lands
+
+    def test_a_card_that_works_starts_the_week(self):
+        self.ask_for_the_week()
+
+        self.card_arrives()
+
+        membership = self.membership()
+        self.assertEqual(membership.state, 'trial')
+        self.assertTrue(membership.is_active)
+        # A card we are allowed to use means the week will try to renew
+        # itself when it ends, and the screen says so.
+        self.assertTrue(membership.auto_renew)
+        self.assertEqual(membership.card_last4, '4242')
+        self.assertEqual(membership.payment_method_id, 'pm_123')
+        self.assertTrue(membership.card_signature)
+
+    def test_the_same_card_cannot_have_a_second_week_under_a_new_email(self):
+        # Ada takes her week.
+        self.ask_for_the_week()
+        self.card_arrives()
+        self.assertEqual(self.membership().state, 'trial')
+
+        # Bola signs up with a different address and the same card.
+        Profile.create_user(email='bola@example.com', password='Soothify2026')
+        bola_token = self.signed_in_as('bola@example.com', 'Soothify2026')
+        self.ask_for_the_week(token=bola_token)
+        self.card_arrives(email='bola@example.com')
+
+        bola = get_user_model().objects.get(email='bola@example.com')
+        self.assertEqual(self.membership(bola).state, 'inactive')
+        self.assertIsNone(self.membership(bola).trial_started_at)
+        # And told why, rather than left wondering.
+        from notifications.models import Notification
+        notice = Notification.objects.get(user=bola)
+        self.assertIn('already had a free week', notice.title)
+
+    def test_a_refused_week_is_not_offered_again(self):
+        self.ask_for_the_week()
+        self.card_arrives()
+
+        Profile.create_user(email='bola@example.com', password='Soothify2026')
+        bola_token = self.signed_in_as('bola@example.com', 'Soothify2026')
+        self.ask_for_the_week(token=bola_token)
+        self.card_arrives(email='bola@example.com')
+
+        offer = self.client.get(
+            reverse('api:billing:membership'), HTTP_AUTHORIZATION=bola_token,
+        ).json()
+
+        # Otherwise the next tap takes another hundred naira to reach the
+        # same answer.
+        self.assertFalse(offer['trial_available'])
+
+    def test_a_refused_week_does_not_count_as_a_week_on_that_card(self):
+        self.ask_for_the_week()
+        self.card_arrives()
+
+        Profile.create_user(email='bola@example.com', password='Soothify2026')
+        bola_token = self.signed_in_as('bola@example.com', 'Soothify2026')
+        self.ask_for_the_week(token=bola_token)
+        self.card_arrives(email='bola@example.com')
+
+        bola = get_user_model().objects.get(email='bola@example.com')
+        # The card has one week against it -- Ada's -- not two.
+        self.assertIsNone(self.membership(bola).trial_started_at)
+        self.assertIsNotNone(self.membership(bola).trial_refused_at)
+
+    def test_a_different_card_is_a_different_person_as_far_as_we_know(self):
+        self.ask_for_the_week()
+        self.card_arrives()
+
+        Profile.create_user(email='bola@example.com', password='Soothify2026')
+        bola_token = self.signed_in_as('bola@example.com', 'Soothify2026')
+        self.ask_for_the_week(token=bola_token)
+        self.card_arrives(email='bola@example.com', card_last4='1881')
+
+        bola = get_user_model().objects.get(email='bola@example.com')
+        self.assertEqual(self.membership(bola).state, 'trial')
+
+    def test_the_card_of_an_existing_member_is_filed_not_judged(self):
+        self.ask_for_the_week()
+        self.card_arrives()
+
+        # The same card arriving again -- a renewal, say -- must not be read
+        # as somebody taking a second week.
+        self.card_arrives()
+
+        self.assertEqual(self.membership().state, 'trial')
+
+    def test_the_signature_is_a_hash_and_not_the_card(self):
+        self.ask_for_the_week()
+        self.card_arrives()
+
+        signature = self.membership().card_signature
+        self.assertEqual(len(signature), 64)
+        self.assertNotIn('4242', signature)
+        # The same four details always name the same card.
+        self.assertEqual(
+            signature,
+            Membership.signature_for('visa', '4242', 11, 2030),
+        )
+
+    # ---------------------------------------------------- changing the card
+
+    def test_a_member_can_change_the_card_on_file(self):
+        with patch('billing.bachs.checkout_saving_card', return_value=CHECKOUT) as call:
+            response = self.client.post(
+                reverse('api:billing:card'), {},
+                content_type='application/json', HTTP_AUTHORIZATION=self.token,
+            )
+
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body['checkout_url'], CHECKOUT['checkout_url'])
+        # The same hundred-naira check as the free week, and nothing bought.
+        self.assertEqual(body['card_check_naira'], 100)
+        self.assertEqual(body['due_today_naira'], 0)
+        self.assertEqual(call.call_args.kwargs['naira'], 100)
+        self.assertEqual(Payment.objects.get().kind, 'card_check')
+
+    def test_changing_the_card_gives_the_check_back_too(self):
+        with patch('billing.bachs.checkout_saving_card', return_value=CHECKOUT):
+            self.client.post(
+                reverse('api:billing:card'), {},
+                content_type='application/json', HTTP_AUTHORIZATION=self.token,
+            )
+
+        with patch('billing.bachs.refund', return_value={'refund_id': 'rfnd_9'}) as refund:
+            self.post_webhook('collection.succeeded', {
+                'reference': Payment.objects.get().reference,
+                'charge_id': 'ch_9',
+            })
+
+        refund.assert_called_once()
+        self.assertEqual(Payment.objects.get().status, 'refunded')
+
+    def test_the_new_card_replaces_the_old_one_on_file(self):
+        with patch('billing.bachs.checkout_saving_card', return_value=CHECKOUT):
+            self.client.post(
+                reverse('api:billing:card'), {},
+                content_type='application/json', HTTP_AUTHORIZATION=self.token,
+            )
+
+        self.card_arrives(card_last4='1881', payment_method_id='pm_new')
+
+        membership = self.membership()
+        self.assertEqual(membership.card_last4, '1881')
+        self.assertEqual(membership.payment_method_id, 'pm_new')
+
+    # ------------------------------------------------------ giving it back
+
+    def test_the_hundred_naira_goes_straight_back(self):
+        self.ask_for_the_week()
+        payment = Payment.objects.get()
+
+        with patch('billing.bachs.refund', return_value={'refund_id': 'rfnd_1'}) as refund:
+            self.post_webhook('collection.succeeded', {
+                'reference': payment.reference,
+                'charge_id': 'ch_123',
+                'payment_method': {'brand': 'visa', 'last4': '4242'},
+            })
+
+        self.assertEqual(refund.call_args.kwargs['charge_id'], 'ch_123')
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'refunded')
+        self.assertEqual(payment.refund_id, 'rfnd_1')
+
+    def test_a_refund_that_fails_is_left_visible_rather_than_swallowed(self):
+        from billing.bachs import BachsError
+        from billing.tasks import give_back_card_check
+
+        self.ask_for_the_week()
+        payment = Payment.objects.get()
+        payment.charge_id = 'ch_123'
+        payment.save(update_fields=['charge_id'])
+
+        with patch('billing.bachs.refund', side_effect=BachsError('no')):
+            self.assertFalse(give_back_card_check(payment.pk))
+
+        payment.refresh_from_db()
+        # Still showing as money taken, because it is.
+        self.assertEqual(payment.status, 'paid' if payment.paid_at else 'pending')
+        self.assertEqual(payment.refund_id, '')
+
+    def test_the_card_check_never_appears_on_billing_history(self):
+        self.ask_for_the_week()
+        # Patched, or the refund the webhook kicks off would be a real call
+        # to Bachs from a test run.
+        with patch('billing.bachs.refund', return_value={'refund_id': 'rfnd_2'}):
+            self.post_webhook('collection.succeeded', {
+                'reference': Payment.objects.get().reference,
+                'charge_id': 'ch_123',
+            })
+
+        history = self.client.get(
+            reverse('api:billing:invoices'), HTTP_AUTHORIZATION=self.token,
+        ).json()
+
+        rows = history.get('results', history)
+        self.assertEqual(rows, [])
+
+
+@override_settings(
+    BACHS_SECRET_KEY=SECRET,
+    BACHS_WEBHOOK_SECRET=WEBHOOK_SECRET,
+    MEMBERSHIP_BILLING='one_off',
+    MEMBERSHIP_AUTO_CHARGE=True,
+    MEMBERSHIP_CHARGE_GRACE_HOURS=48,
+)
+class ChargingTheSavedCardTests(BillingTestCase):
+    """Taking the next period from a card we hold.
+
+    This is what stands in for a subscription. It is allowed to fail, and
+    it often will: an off-session charge cannot ask for the OTP most banks
+    here want, so what matters as much as the charge working is what
+    happens when it does not.
+    """
+
+    def member(self, days=0, **overrides):
+        """A member whose period ends `days` from now, with a card on file."""
+        membership = Membership.objects.get_or_create(user=self.user)[0]
+        membership.plan = self.plan
+        membership.state = 'trial'
+        membership.auto_renew = True
+        membership.customer_id = 'cust_123'
+        membership.payment_method_id = 'pm_123'
+        membership.card_brand = 'Mastercard'
+        membership.card_last4 = '8821'
+        membership.renews_at = timezone.now() + datetime.timedelta(days=days)
+        for field, value in overrides.items():
+            setattr(membership, field, value)
+        membership.save()
+        return membership
+
+    def notices(self):
+        from notifications.models import Notification
+
+        return Notification.objects.filter(user=self.user)
+
+    def test_the_card_is_charged_the_day_the_period_ends(self):
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=0)
+
+        with patch('billing.bachs.charge_saved_card',
+                   return_value={'payment_id': 'ch_1', 'status': 'processing'}) as charge:
+            self.assertEqual(charge_due_memberships(), 1)
+
+        asked = charge.call_args.kwargs
+        self.assertEqual(asked['customer_id'], 'cust_123')
+        self.assertEqual(asked['payment_method_id'], 'pm_123')
+        self.assertEqual(asked['naira'], 150000)
+
+    def test_processing_is_not_paid(self):
+        from billing.tasks import charge_due_memberships
+
+        membership = self.member(days=0)
+        was = membership.renews_at
+
+        with patch('billing.bachs.charge_saved_card',
+                   return_value={'status': 'processing'}):
+            charge_due_memberships()
+
+        # "Processing" is not money. Only the webhook may extend anything.
+        membership.refresh_from_db()
+        self.assertEqual(membership.renews_at, was)
+        self.assertEqual(membership.state, 'trial')
+        self.assertEqual(Payment.objects.get(kind='membership').status, 'pending')
+
+    def test_the_webhook_turns_the_charge_into_a_period(self):
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=0)
+        with patch('billing.bachs.charge_saved_card', return_value={'status': 'processing'}):
+            charge_due_memberships()
+
+        self.post_webhook('collection.succeeded', {
+            'reference': Payment.objects.get(kind='membership').reference,
+            'charge_id': 'ch_1',
+        })
+
+        membership = Membership.objects.get(user=self.user)
+        self.assertEqual(membership.state, 'active')
+        self.assertAlmostEqual(
+            (membership.renews_at - timezone.now()).days, 365, delta=1,
+        )
+        # Still ours to charge next time, since the card is still here.
+        self.assertTrue(membership.auto_renew)
+
+    def test_a_bank_that_wants_its_customer_hands_over_to_the_reminders(self):
+        from billing.bachs import BachsError
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=0)
+
+        with patch('billing.bachs.charge_saved_card',
+                   side_effect=BachsError('PAYMENT_METHOD_UNUSABLE')):
+            charge_due_memberships()
+
+        membership = Membership.objects.get(user=self.user)
+        # Not retried tomorrow, and not treated as a fault: the member is
+        # asked to pay, which is where they would have been anyway.
+        self.assertFalse(membership.auto_renew)
+        self.assertEqual(Payment.objects.get(kind='membership').status, 'failed')
+        notice = self.notices().get()  # one message, not a pile of them
+        self.assertIn('confirm your payment', notice.title)
+        self.assertIn('8821', notice.body + membership.card_label)
+
+    def test_a_failed_charge_leaves_time_to_pay_by_hand(self):
+        from billing.bachs import BachsError
+        from billing.tasks import charge_due_memberships, expire_lapsed_memberships
+
+        self.member(days=0)
+
+        with patch('billing.bachs.charge_saved_card', side_effect=BachsError('no')):
+            charge_due_memberships()
+
+        membership = Membership.objects.get(user=self.user)
+        # The message says "tap to pay and keep your membership". Ending it
+        # in the same minute would make that a lie.
+        self.assertTrue(membership.is_active)
+        self.assertGreater(membership.renews_at, timezone.now())
+        self.assertEqual(expire_lapsed_memberships(), 0)
+        # And the message says how long they have.
+        self.assertIn('access stays on until', self.notices().get().body)
+
+    def test_a_failed_charge_is_the_only_word_on_it_that_morning(self):
+        from billing.bachs import BachsError
+        from billing.tasks import charge_due_memberships, send_renewal_reminders
+
+        self.member(days=0)
+
+        with patch('billing.bachs.charge_saved_card', side_effect=BachsError('no')):
+            charge_due_memberships()
+        sent = send_renewal_reminders()
+
+        # One message about the money, not two in the same morning -- and
+        # certainly not one promising to charge a card we have put down.
+        self.assertEqual(sent, 0)
+        self.assertEqual(self.notices().count(), 1)
+
+    def test_a_card_put_down_is_not_promised_to_the_member(self):
+        from billing.bachs import BachsError
+        from billing.tasks import charge_due_memberships, send_renewal_reminders
+
+        membership = self.member(days=0)
+        with patch('billing.bachs.charge_saved_card', side_effect=BachsError('no')):
+            charge_due_memberships()
+
+        # Two days before the grace runs out, which is a reminder day.
+        membership.refresh_from_db()
+        membership.reminded_at = None
+        membership.renews_at = timezone.now().replace(
+            hour=18, minute=0, second=0, microsecond=0,
+        ) + datetime.timedelta(days=2)
+        membership.save(update_fields=['reminded_at', 'renews_at'])
+
+        with patch('billing.tasks.timezone.now',
+                   return_value=timezone.now().replace(hour=6, minute=0)):
+            self.assertEqual(send_renewal_reminders(), 1)
+
+        body = self.notices().latest('id').body
+        # The card has been put down, so nothing may promise to charge it.
+        self.assertNotIn('We will charge', body)
+        self.assertIn('Pay \u20a6150,000', body)
+
+    def test_a_card_is_not_charged_twice_in_a_day(self):
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=0)
+
+        with patch('billing.bachs.charge_saved_card',
+                   return_value={'status': 'processing'}) as charge:
+            charge_due_memberships()
+            charge_due_memberships()
+
+        self.assertEqual(charge.call_count, 1)
+
+    def test_a_period_with_days_to_run_is_left_alone(self):
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=3)
+
+        with patch('billing.bachs.charge_saved_card') as charge:
+            self.assertEqual(charge_due_memberships(), 0)
+        charge.assert_not_called()
+
+    def test_a_membership_with_no_card_is_left_to_the_reminders(self):
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=0, payment_method_id='')
+
+        with patch('billing.bachs.charge_saved_card') as charge:
+            self.assertEqual(charge_due_memberships(), 0)
+        charge.assert_not_called()
+
+    @override_settings(MEMBERSHIP_AUTO_CHARGE=False)
+    def test_nothing_is_charged_when_the_switch_is_off(self):
+        from billing.tasks import charge_due_memberships
+
+        self.member(days=0)
+
+        with patch('billing.bachs.charge_saved_card') as charge:
+            charge_due_memberships()
+
+        charge.assert_not_called()
+        self.assertFalse(Membership.objects.get(user=self.user).auto_renew)
+
+    def test_a_charge_that_never_comes_back_is_given_up_on(self):
+        from billing.tasks import give_up_on_stuck_charges
+
+        # Tried three days ago; no webhook ever arrived.
+        self.member(
+            days=-3,
+            charge_attempted_at=timezone.now() - datetime.timedelta(days=3),
+        )
+
+        self.assertEqual(give_up_on_stuck_charges(), 1)
+
+        membership = Membership.objects.get(user=self.user)
+        self.assertFalse(membership.auto_renew)
+        self.assertEqual(self.notices().count(), 1)
+        # Which hands it to the lapse job, as an unpaid period.
+        from billing.tasks import expire_lapsed_memberships
+        self.assertEqual(expire_lapsed_memberships(), 1)
+
+    def test_cancelling_puts_the_card_down(self):
+        from billing.tasks import charge_due_memberships, expire_lapsed_memberships
+
+        membership = self.member(days=0)
+        membership.cancel()
+
+        with patch('billing.bachs.charge_saved_card') as charge:
+            charge_due_memberships()
+
+        # "Cancel" has to mean the card is not charged again...
+        charge.assert_not_called()
+        self.assertFalse(Membership.objects.get(user=self.user).auto_renew)
+        # ...and the period still ends when it ends, rather than sitting
+        # cancelled-but-active for good.
+        self.assertEqual(expire_lapsed_memberships(), 1)
+        self.assertFalse(Membership.objects.get(user=self.user).is_active)
+
+    def test_a_charge_from_this_morning_is_still_waiting(self):
+        from billing.tasks import give_up_on_stuck_charges
+
+        self.member(days=0, charge_attempted_at=timezone.now())
+
+        self.assertEqual(give_up_on_stuck_charges(), 0)
+
+    def test_the_warning_names_the_card_and_the_amount(self):
+        from billing.tasks import send_renewal_reminders
+
+        self.member(days=2)
+
+        with patch('billing.tasks.timezone.now',
+                   return_value=timezone.now().replace(hour=6)):
+            send_renewal_reminders()
+
+        body = self.notices().get().body
+        # Somebody about to be charged is told so, with the card named and
+        # a way out, before the money moves.
+        self.assertIn('150,000', body)
+        self.assertIn('8821', body)
+        self.assertIn('Cancel any time', body)

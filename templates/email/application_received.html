@@ -1,0 +1,38 @@
+{% autoescape off %}<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:24px;background:#F7F9FC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#263238;line-height:1.6;">
+    <div style="max-width:560px;margin:0 auto;background:#FEFEFE;border-radius:16px;padding:32px;">
+      <p style="margin:0 0 16px;">Hi {{ first_name }},</p>
+
+      <p style="margin:0 0 16px;">Thank you for applying to practise on Soothify.</p>
+
+      <p style="margin:0 0 16px;">
+        We have your application{% if disciplines %} for <strong>{{ disciplines }}</strong>{% endif %},
+        along with your certificate and your ID. Both are stored privately and are
+        only ever opened by the person reviewing you.
+      </p>
+
+      <p style="margin:0 0 8px;"><strong>What happens next</strong></p>
+      <p style="margin:0 0 16px;">
+        Someone on our clinical team reads every application themselves, usually
+        within 24 to 48 hours. If anything is missing or unclear, we will write to
+        you from this address and ask. If we can take you on, we will send you an
+        invite to set up your practitioner account, where you open the hours you
+        are available and take your first bookings.
+      </p>
+
+      <p style="margin:0 0 16px;">You do not need to do anything in the meantime.</p>
+
+      <p style="margin:0 0 24px;">
+        If you need to reach us before then, write to
+        <a href="mailto:{{ support_email }}" style="color:#2F6FED;">{{ support_email }}</a>
+        and a person will answer.
+      </p>
+
+      <p style="margin:0;">With thanks,<br>Rita Peter<br>
+        <a href="{{ site_url }}" style="color:#2F6FED;">Soothify Africa</a>
+      </p>
+    </div>
+  </body>
+</html>
+{% endautoescape %}

@@ -125,19 +125,97 @@ def checkout_for_product(product_id, email, reference_, success_url,
 
 
 def checkout_for_amount(naira, email, reference_, success_url,
-                        cancel_url='', metadata=None):
+                        cancel_url='', metadata=None, save_card=False):
     """Buy something that is not a product -- one booked session.
 
     Ad-hoc pricing, so we are not creating a product per session.
+
+    `save_card` keeps the card afterwards, which is what lets the next
+    period be charged without sending the member back to a checkout. A
+    naira card can only be kept while it is being charged, so this is the
+    moment, or never.
     """
-    return _post('/v1/checkout-sessions', {
+    payload = {
         'pricing': {'amount': money(naira), 'currency': 'NGN'},
         'customer': {'email': email},
         'success_url': success_url,
         'cancel_url': cancel_url or success_url,
         'reference': reference_,
         'metadata': metadata or {},
+    }
+    if save_card:
+        payload['save_payment_method'] = True
+    return _post('/v1/checkout-sessions', payload)
+
+
+def charge_saved_card(customer_id, naira, reference_, payment_method_id='',
+                      description=''):
+    """Charge a card we already hold, with nobody at the keyboard.
+
+    The answer is not the outcome: it comes back "processing" and the money
+    is confirmed by `collection.succeeded`, or not by `collection.failed`.
+    Nothing may be granted on the strength of this return value.
+
+    It fails outright for any card whose bank insists on authenticating the
+    cardholder -- common here -- because an off-session charge has no way to
+    ask. That is a refusal to fall back from, not an error to retry.
+    """
+    payload = {
+        'customer': customer_id,
+        'amount': money(naira),
+        'currency': 'NGN',
+        'reference': reference_,
+    }
+    if payment_method_id:
+        payload['payment_method'] = payment_method_id
+    if description:
+        payload['description'] = description
+    return _post('/v1/charges', payload, idempotency_key=reference_)
+
+
+def checkout_saving_card(naira, email, reference_, success_url,
+                         cancel_url='', metadata=None, name=''):
+    """Take a small amount and keep the card.
+
+    The only way to prove a naira card. Bachs have no zero-amount check:
+    a setup-only session comes back in USD, which most cards issued here
+    cannot use, and their smallest charge is one hundred naira. So the card
+    is proved by charging it that much -- and the money is given straight
+    back (see `refund`).
+
+    What comes back of the card -- brand, last four, expiry -- is what makes
+    a second free week on the same card visible under a new email address.
+    """
+    customer = {'email': email}
+    if name:
+        customer['name'] = name
+
+    return _post('/v1/checkout-sessions', {
+        'pricing': {'amount': money(naira), 'currency': 'NGN'},
+        'customer': customer,
+        'save_payment_method': True,
+        'success_url': success_url,
+        'cancel_url': cancel_url or success_url,
+        'reference': reference_,
+        'metadata': metadata or {},
     })
+
+
+def refund(charge_id, reference_, reason='', naira=None):
+    """Give money back. `charge_id` is their `ch_...`, not our reference.
+
+    Whole charge unless an amount is named. Their fee on the original
+    payment is not returned to us, which is the cost of checking a card.
+    """
+    payload = {
+        'charge_id': charge_id,
+        'reference': reference_,
+    }
+    if reason:
+        payload['reason'] = reason
+    if naira is not None:
+        payload['amount'] = money(naira)
+    return _post('/v1/refunds', payload, idempotency_key=reference_)
 
 
 def get_checkout(checkout_id):
@@ -311,14 +389,43 @@ def _call(method, path, payload, idempotency_key=None):
     return parsed.get('data', parsed) if isinstance(parsed, dict) else {}
 
 
+#: Refusals worth saying in our own words.
+#:
+#: Their wording is written for whoever wired the API up, not for the person
+#: holding the phone, and this one is a standing limitation of the account
+#: rather than something that will work on a second try.
+FRIENDLY_ERRORS = {
+    'NGN_SUBSCRIPTIONS_NOT_ENABLED': (
+        'Memberships cannot be paid for in naira yet. Single sessions can '
+        'still be booked and paid for as usual.'
+    ),
+}
+
+
 def _message(raw):
+    """The reason a call was refused, as plainly as it can be put.
+
+    Their payloads are not consistent: a checkout refusal carries `detail`
+    and an `error_code`, while other endpoints use `message`, or nest one
+    under `error`. Reading only some of those lost the reason entirely and
+    left every refusal reading "Bachs refused the request."
+    """
     try:
         parsed = json.loads(raw)
     except ValueError:
         return ''
-    if isinstance(parsed, dict):
-        error_detail = parsed.get('error')
-        if isinstance(error_detail, dict):
-            return error_detail.get('message', '')
-        return parsed.get('message', '') or str(error_detail or '')
-    return ''
+    if not isinstance(parsed, dict):
+        return ''
+
+    friendly = FRIENDLY_ERRORS.get(parsed.get('error_code', ''))
+    if friendly:
+        return friendly
+
+    error_detail = parsed.get('error')
+    if isinstance(error_detail, dict):
+        return error_detail.get('message', '')
+    return (
+        parsed.get('message', '')
+        or parsed.get('detail', '')
+        or str(error_detail or '')
+    )

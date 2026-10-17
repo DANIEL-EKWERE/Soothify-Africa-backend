@@ -31,3 +31,8 @@ staticfiles/
 # compilemessages (Render's image has no gettext), so the compiled catalogs
 # must be committed for Pidgin to work in production.
 soothifyAfrica/settings.py
+
+# Firebase service account -- the key the server signs pushes with. A
+# credential, like settings.py: uploaded by hand, never committed.
+firebase-service-account.json
+*firebase-adminsdk*.json

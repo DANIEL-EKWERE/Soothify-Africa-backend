@@ -1,0 +1,17 @@
+{% autoescape off %}Hi {{ first_name }},
+
+Thank you for applying to practise on Soothify.
+
+We have your application{% if disciplines %} for {{ disciplines }}{% endif %}, along with your certificate and your ID. Both are stored privately and are only ever opened by the person reviewing you.
+
+Here is what happens next. Someone on our clinical team reads every application themselves, usually within 24 to 48 hours. If anything is missing or unclear, we will write to you from this address and ask. If we can take you on, we will send you an invite to set up your practitioner account, where you open the hours you are available and take your first bookings.
+
+You do not need to do anything in the meantime.
+
+If you need to reach us before then, write to {{ support_email }} and a person will answer.
+
+With thanks,
+Rita Peter
+Soothify Africa
+{{ site_url }}
+{% endautoescape %}

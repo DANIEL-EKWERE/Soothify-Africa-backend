@@ -426,3 +426,154 @@ msgstr "Join me for the Soothify waitlist"
 
 msgid "Close and go back to the home page"
 msgstr "Close am, go back to home page"
+
+# --- Become an Expert (the practitioner application) ------------------------
+# The app's own wording, step for step -- Figma 259:59132 onwards.
+
+msgid "Are you a therapist or instructor? Practise with us"
+msgstr "You be therapist or instructor? Come practise with us"
+
+msgid "Join the Soothify Expert Network"
+msgstr "Join the Soothify Expert Network"
+
+msgid ""
+"Bring your practice to a global audience. Help clients heal and grow in "
+"English or Pidgin."
+msgstr ""
+"Bring your practice come meet plenty people. Help clients heal and grow for "
+"English or Pidgin."
+
+msgid ""
+"Therapists, yoga teachers and Pilates instructors: apply to take sessions on "
+"Soothify Africa. We read every application within 24 to 48 hours."
+msgstr ""
+"Therapists, yoga teachers and Pilates instructors: apply make you dey take "
+"sessions for Soothify Africa. We dey read every application within 24 to 48 "
+"hours."
+
+msgid "Practitioners on Soothify"
+msgstr "Practitioners for Soothify"
+
+msgid "Start Application"
+msgstr "Start Application"
+
+msgid "Back"
+msgstr "Go back"
+
+msgid "Become an Expert"
+msgstr "Become an Expert"
+
+msgid "Apply to take sessions on Soothify Africa."
+msgstr "Apply make you dey take sessions for Soothify Africa."
+
+msgid "Step %(step)s of %(total_steps)s"
+msgstr "Step %(step)s of %(total_steps)s"
+
+msgid "What are your primary areas of expertise?"
+msgstr "Wetin be your main area of expertise?"
+
+msgid "Licensed Therapist"
+msgstr "Licensed Therapist"
+
+msgid "Certified Yoga Instructor"
+msgstr "Certified Yoga Instructor"
+
+msgid "Certified Pilates Instructor"
+msgstr "Certified Pilates Instructor"
+
+msgid "What is your name?"
+msgstr "Wetin be your name?"
+
+msgid "What is your email address?"
+msgstr "Wetin be your email address?"
+
+msgid "What is your phone number?"
+msgstr "Wetin be your phone number?"
+
+msgid "What is your years of experience"
+msgstr "How many years you don dey practise"
+
+msgid "Tell us briefly about yourself?"
+msgstr "Tell us small about yourself?"
+
+msgid "Your professional portfolio link"
+msgstr "Your professional portfolio link"
+
+msgid "Which languages are you completely fluent in for client sessions?"
+msgstr "Which language you sabi well-well for client sessions?"
+
+msgid "English"
+msgstr "English"
+
+msgid "Pidgin English"
+msgstr "Pidgin English"
+
+msgid "License / Certification Number"
+msgstr "License / Certification Number"
+
+msgid ""
+"Upload official certification, degree, or practicing license (PDF, JPG, or "
+"PNG)*"
+msgstr ""
+"Upload your official certificate, degree, or practising license (PDF, JPG, "
+"or PNG)*"
+
+msgid ""
+"Government-issued photo ID (NIN, International Passport) for identity "
+"verification*"
+msgstr ""
+"Government photo ID (NIN, International Passport) for identity "
+"verification*"
+
+msgid "Liability/Practitioner Insurance"
+msgstr "Liability/Practitioner Insurance"
+
+msgid "PDF, JPG or PNG, up to %(max_upload_mb)s MB."
+msgstr "PDF, JPG or PNG, no pass %(max_upload_mb)s MB."
+
+msgid "Everything I have written here is true, and the documents are mine."
+msgstr "Everything wey I write here na true, and the documents na my own."
+
+msgid "Please confirm before sending your application."
+msgstr "Abeg confirm am before you send your application."
+
+msgid "Next"
+msgstr "Next"
+
+msgid "Submit Application"
+msgstr "Submit Application"
+
+msgid "Choose at least one."
+msgstr "Pick at least one."
+
+msgid "Upload a PDF, JPG or PNG."
+msgstr "Upload PDF, JPG or PNG."
+
+msgid "Something went wrong. Try again."
+msgstr "Something no work. Try again."
+
+msgid ""
+"We already have an application from this address and we are reading it. We "
+"will write to you."
+msgstr ""
+"We don already get application from this address and we dey read am. We go "
+"write you."
+
+msgid "Application Submitted!"
+msgstr "Application Don Enter!"
+
+msgid "Your application to practise on Soothify Africa is with us."
+msgstr "Your application to practise for Soothify Africa dey with us."
+
+msgid ""
+"Thank you for applying to join Soothify. Our team is reviewing your "
+"credentials and will reach out via email within 24 to 48 hours once verified."
+msgstr ""
+"Thank you for applying to join Soothify. Our team dey check your credentials "
+"and we go email you within 24 to 48 hours once we don verify am."
+
+msgid "We will write to %(email)s."
+msgstr "We go write you for %(email)s."
+
+msgid "Continue"
+msgstr "Continue"

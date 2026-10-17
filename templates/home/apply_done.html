@@ -1,0 +1,48 @@
+{% extends "home/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% translate "Application Submitted!" %} — Soothify Africa{% endblock %}
+{% block description %}{% translate "Your application to practise on Soothify Africa is with us." %}{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% comment %}
+  The app's acknowledgement — `259:59229`: a card with a green disc and a
+  tick, the heading, the note, and one action. Same words as the app, so
+  the two cannot drift into promising different things.
+{% endcomment %}
+{% block body %}
+<main class="xp">
+  <div class="xp__col xp__col--done">
+    <div class="xp-done">
+      <span class="xp-done__tick" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12.5l5 5L20 7"/>
+        </svg>
+      </span>
+      <h1 class="xp-done__title">{% translate "Application Submitted!" %}</h1>
+      <p class="xp-done__body">
+        {% blocktranslate trimmed %}
+          Thank you for applying to join Soothify. Our team is reviewing your
+          credentials and will reach out via email within 24 to 48 hours once
+          verified.
+        {% endblocktranslate %}
+      </p>
+    </div>
+
+    {% comment %}
+      The app's Continue goes back into the app. On the website the only
+      thing to continue to is the site itself — and the address we will
+      write to is worth confirming, since nothing else will show it again.
+    {% endcomment %}
+    <p class="xp-done__at">
+      {% blocktranslate trimmed with email=application.email %}
+        We will write to {{ email }}.
+      {% endblocktranslate %}
+    </p>
+    <a class="xp-btn" href="{% url 'home:landing' %}">{% translate "Continue" %}</a>
+  </div>
+</main>
+{% endblock %}
+
+{% block footer %}{% endblock %}

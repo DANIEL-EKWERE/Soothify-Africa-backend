@@ -27,6 +27,7 @@
       {% include "dashboard/_nav_item.html" with key="overview" href="/dashboard/" label="Overview" icon="grid" %}
       {% include "dashboard/_nav_item.html" with key="waitlist" href="/dashboard/waitlist/" label="Waitlist" icon="list" %}
       {% include "dashboard/_nav_item.html" with key="media" href="/dashboard/media/" label="Library" icon="play" %}
+      {% include "dashboard/_nav_item.html" with key="applications" href="/dashboard/applications/" label="Applications" icon="people" count=waiting_count %}
       {% include "dashboard/_nav_item.html" with key="sessions" href="/dashboard/sessions/" label="Sessions" icon="calendar" %}
       {% include "dashboard/_nav_item.html" with key="recordings" href="/dashboard/recordings/" label="Recordings" icon="mic" count=open_flags %}
       {% include "dashboard/_nav_item.html" with key="people" href="/dashboard/people/" label="People" icon="people" %}

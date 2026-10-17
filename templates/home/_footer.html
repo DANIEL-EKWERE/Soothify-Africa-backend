@@ -27,6 +27,15 @@
       {% if cta != False %}
       <p>{% translate "We're putting the final touches on everything. Drop your email to claim your spot on the waitlist" %}</p>
       <a class="btn btn--primary" href="{{ waitlist_url }}">{% translate "Join waitlist" %}</a>
+      {% comment %}
+        The one way into the practitioner application. Deliberately quiet and
+        deliberately here: the legal row's spacing and the nav are both
+        measured against the design, and a third link in either would move
+        something that was set on purpose.
+      {% endcomment %}
+      <p class="footer__practise">
+        <a href="{% url 'home:practitioner_apply' %}">{% translate "Are you a therapist or instructor? Practise with us" %}</a>
+      </p>
       {% endif %}
     </div>
   </div>

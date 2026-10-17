@@ -8,7 +8,13 @@ host without a worker, one cron entry runs the lot:
 
 from django.core.management.base import BaseCommand
 
-from billing.tasks import reconcile_subscriptions
+from billing.tasks import (
+    charge_due_memberships,
+    expire_lapsed_memberships,
+    give_up_on_stuck_charges,
+    reconcile_subscriptions,
+    send_renewal_reminders,
+)
 from experts.tasks import release_expired_holds, send_session_reminders
 from recordings.tasks import purge_old_recordings
 
@@ -19,7 +25,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '--only',
-            choices=['subscriptions', 'reminders', 'holds', 'recordings'],
+            choices=[
+                'subscriptions', 'memberships', 'reminders', 'holds',
+                'recordings',
+            ],
             help='Run just one of them.',
         )
 
@@ -31,6 +40,15 @@ class Command(BaseCommand):
             ran.append(('released holds', release_expired_holds()))
         if only in (None, 'subscriptions'):
             ran.append(('reconciled memberships', reconcile_subscriptions()))
+        if only in (None, 'memberships'):
+            # Sold a period at a time, these are the renewal cycle, in the
+            # order they belong in: take the money from the cards we hold,
+            # give up on the ones that would not take it, warn whoever has
+            # to pay by hand, and end what nobody paid for.
+            ran.append(('cards charged', charge_due_memberships()))
+            ran.append(('charges given up on', give_up_on_stuck_charges()))
+            ran.append(('renewal reminders', send_renewal_reminders()))
+            ran.append(('memberships lapsed', expire_lapsed_memberships()))
         if only in (None, 'reminders'):
             ran.append(('session reminders', send_session_reminders()))
         if only in (None, 'recordings'):

@@ -11,6 +11,8 @@ ends, renewals, and retries on a failed card. We record what they tell us.
 
 import logging
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -26,10 +28,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api import jobs
 from experts.models import Session
 
 from . import bachs
 from .models import Cadence, Membership, Payment, Plan, PromoCode
+from .tasks import give_back_card_check
 from .serializers import (
     CheckoutSerializer,
     InvoiceSerializer,
@@ -79,11 +83,134 @@ class InvoiceListView(generics.ListAPIView):
         ).exclude(status='pending')
 
 
-class CheckoutView(APIView):
-    """Start a membership. Returns a Bachs checkout URL for the app to open.
+def start_card_check(request, membership, description):
+    """Take the smallest amount Bachs allow, keep the card, give it back.
 
-    Nothing is charged here even when the plan has a trial: Bachs saves the
-    card at checkout and bills the first cycle when the seven days are up.
+    The one way to prove a naira card -- they have no zero-amount check, and
+    a setup-only session comes back in USD, which most cards issued here
+    cannot use. Used twice: before the free week, and to replace the card on
+    file afterwards.
+
+    Returns (payment, checkout) or (payment, None) when Bachs refused.
+    """
+    naira = getattr(settings, 'TRIAL_CARD_CHECK_NAIRA', 100)
+    payment = Payment.objects.create(
+        user=request.user,
+        kind='card_check',
+        amount_naira=naira,
+        description=description,
+        membership=membership,
+        reference=bachs.reference('chk'),
+    )
+
+    try:
+        checkout = bachs.checkout_saving_card(
+            naira=naira,
+            email=request.user.email,
+            name=getattr(getattr(request.user, 'profile', None), 'full_name', ''),
+            reference_=payment.reference,
+            success_url=_return_url(),
+            metadata={'kind': 'card_check', 'user_id': request.user.pk},
+        )
+    except bachs.BachsError as failure:
+        payment.status = 'failed'
+        payment.save(update_fields=['status'])
+        logger.warning('card check refused: %s', failure)
+        return payment, None
+
+    payment.checkout_id = checkout.get('checkout_id', '')
+    payment.save(update_fields=['checkout_id'])
+    return payment, checkout
+
+
+class ReplaceCardView(APIView):
+    """Change the card on file -- "Update payment method".
+
+    The same hundred-naira check as the free week, and given back the same
+    way. There is no other way to do it: a card is only saved while it is
+    charged, so replacing one means charging the new one once.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        membership, _created = Membership.objects.get_or_create(user=request.user)
+        payment, checkout = start_card_check(
+            request, membership, 'Card check to change your card (refunded)',
+        )
+        if checkout is None:
+            return Response(
+                {'detail': 'Could not start that just now. Try again shortly.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response({
+            'reference': payment.reference,
+            'amount_naira': payment.amount_naira,
+            'checkout_url': checkout.get('checkout_url', ''),
+            'checkout_id': payment.checkout_id,
+            'card_check_naira': payment.amount_naira,
+            'card_check': True,
+            'due_today_naira': 0,
+            'trial_started': False,
+        }, status=status.HTTP_201_CREATED)
+
+
+class _CardCheckMixin:
+    """The small charge that stands in for a card check. See settings."""
+
+    def _check_the_card(self, request, membership, plan, cadence):
+        naira = getattr(settings, 'TRIAL_CARD_CHECK_NAIRA', 100)
+
+        # Remembered now so the webhook knows which plan the week is for.
+        membership.plan = plan
+        membership.cadence = cadence
+        membership.auto_renew = False
+        membership.save(update_fields=['plan', 'cadence', 'auto_renew', 'updated_at'])
+
+        payment, checkout = start_card_check(
+            request, membership, 'Card check for the free week (refunded)',
+        )
+        if checkout is None:
+            return Response(
+                {'detail': 'Could not start that just now. Try again shortly.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response({
+            'reference': payment.reference,
+            'amount_naira': naira,
+            'checkout_url': checkout.get('checkout_url', ''),
+            'checkout_id': payment.checkout_id,
+            'trial_days': plan.trial_days,
+            # Taken and given straight back. Named rather than hidden: the
+            # cardholder will see it leave, and their bank takes a few days
+            # to show it coming back.
+            'due_today_naira': 0,
+            'card_check_naira': naira,
+            'card_check': True,
+            'trial_started': False,
+        }, status=status.HTTP_201_CREATED)
+
+
+def _one_period_at_a_time():
+    """Whether memberships are sold a period at a time. See settings."""
+    return getattr(settings, 'MEMBERSHIP_BILLING', 'one_off') != 'subscription'
+
+
+class CheckoutView(_CardCheckMixin, APIView):
+    """Start a membership. Usually returns a checkout URL for the app to open.
+
+    Two arrangements, chosen by MEMBERSHIP_BILLING:
+
+    **subscription** -- Bachs saves the card at checkout and runs the cycle:
+    nothing is charged today even without a trial, and the first charge comes
+    when the seven days are up.
+
+    **one_off** -- one payment buys one period and nothing renews itself.
+    The free week is granted here and now, with no payment and no checkout to
+    open, because there would be no saved card to charge when it ended. The
+    member is reminded before the period runs out and pays again.
     """
 
     permission_classes = [IsAuthenticated]
@@ -101,7 +228,9 @@ class CheckoutView(APIView):
                 {'detail': 'This plan is not sold here.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not plan.bachs_product_id:
+
+        one_off = _one_period_at_a_time()
+        if not one_off and not plan.bachs_product_id:
             # Without a product at Bachs there is nothing to subscribe to.
             # Said plainly rather than failing somewhere inside their API.
             return Response(
@@ -116,21 +245,83 @@ class CheckoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        cadence = form.validated_data['cadence']
+        wants_trial = form.validated_data['trial'] and plan.trial_days
+
+        if one_off and wants_trial and not membership.trial_used:
+            if getattr(settings, 'TRIAL_REQUIRES_CARD', True):
+                return self._check_the_card(request, membership, plan, cadence)
+
+            # No card asked for: the week is simply given. Nothing moves, so
+            # there is no payment to record and no webhook to wait for, and
+            # the app can act on this answer immediately.
+            membership.start_trial(plan, cadence, auto_renew=False)
+            return Response({
+                'reference': '',
+                'checkout_url': '',
+                'amount_naira': 0,
+                'checkout_id': '',
+                'trial_days': plan.trial_days,
+                'due_today_naira': 0,
+                'trial_started': True,
+                'membership': MembershipSerializer(membership).data,
+            }, status=status.HTTP_201_CREATED)
+
+        amount, code = _discounted(plan.price_naira, form.validated_data.get('promo_code'))
         payment = Payment.objects.create(
             user=request.user,
             kind='membership',
-            amount_naira=plan.price_naira,
+            amount_naira=amount if one_off else plan.price_naira,
             description='{0} ({1})'.format(
                 plan.name, plan.get_cadence_display() or 'one-off',
             ),
             membership=membership,
+            promo_code=code if one_off else '',
             reference=bachs.reference('mem'),
         )
 
         # Remembered so the webhook knows what this checkout was buying.
         membership.plan = plan
-        membership.cadence = form.validated_data['cadence']
-        membership.save(update_fields=['plan', 'cadence', 'updated_at'])
+        membership.cadence = cadence
+        membership.auto_renew = not one_off
+        membership.save(update_fields=['plan', 'cadence', 'auto_renew', 'updated_at'])
+
+        if one_off:
+            try:
+                # The same ad-hoc charge a session uses. Their recurring
+                # products refuse naira; a plain charge does not.
+                checkout = bachs.checkout_for_amount(
+                    naira=amount,
+                    email=request.user.email,
+                    reference_=payment.reference,
+                    success_url=_return_url(),
+                    metadata={'kind': 'membership', 'user_id': request.user.pk},
+                    # Kept so the period after this one can renew without
+                    # sending them back to a checkout. A naira card can only
+                    # be kept while it is charged, so it is now or never.
+                    save_card=bool(getattr(settings, 'MEMBERSHIP_AUTO_CHARGE', True)),
+                )
+            except bachs.BachsError as failure:
+                payment.status = 'failed'
+                payment.save(update_fields=['status'])
+                return Response(
+                    {'detail': str(failure)}, status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            payment.checkout_id = checkout.get('checkout_id', '')
+            payment.save(update_fields=['checkout_id'])
+
+            return Response({
+                'reference': payment.reference,
+                'amount_naira': amount,
+                'checkout_url': checkout.get('checkout_url', ''),
+                'checkout_id': payment.checkout_id,
+                'trial_days': 0,
+                # Sold outright: the whole period is due now, which is the
+                # difference the app's "Due today" line has to show.
+                'due_today_naira': amount,
+                'trial_started': False,
+            }, status=status.HTTP_201_CREATED)
 
         try:
             checkout = bachs.checkout_for_product(
@@ -160,6 +351,7 @@ class CheckoutView(APIView):
             # Nothing is taken today when the plan has a trial, which is what
             # the app's "Due today ₦0.00" line is telling the user.
             'due_today_naira': 0 if plan.trial_days else plan.price_naira,
+            'trial_started': False,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -320,6 +512,7 @@ def webhook(request):
         'customer.subscription.deleted': _subscription_deleted,
         'invoice.paid': _invoice_paid,
         'invoice.payment_failed': _invoice_failed,
+        'payment_method.saved': _card_saved,
     }.get(event)
 
     if handler is None:
@@ -340,6 +533,12 @@ def _checkout_completed(data):
     subscription = data.get('subscription') or {}
     membership = payment.membership
     if membership is None or payment.kind != 'membership':
+        return
+
+    if payment.status == 'paid':
+        # Already granted. They retry deliveries, and `collection.succeeded`
+        # arrives for the same one-off charge -- a second extension here
+        # would be a free period.
         return
 
     _remember_customer(membership, data)
@@ -366,14 +565,144 @@ def _checkout_completed(data):
 
 
 def _collection_succeeded(data):
-    """Money arrived for a one-off -- a booked session."""
+    """Money arrived for a one-off -- a booked session, or one period of a
+    membership while they are sold a period at a time."""
     payment = _payment_for(data)
     if payment is None or payment.status == 'paid':
         return
 
     _mark_paid(payment, data)
+
     if payment.kind == 'session' and payment.session_id:
         payment.session.mark_paid()
+        return
+
+    if payment.kind == 'card_check':
+        # The card worked, which was the whole point. The money goes back;
+        # the week itself starts when the card arrives (`_card_saved`),
+        # since that is the event that says what the card is.
+        payment.charge_id = _charge_id(data)
+        payment.save(update_fields=['charge_id'])
+        jobs.run(give_back_card_check, payment.pk)
+        return
+
+    if payment.kind == 'membership' and payment.membership is not None:
+        # One payment, one period. `extend` works the end date out from the
+        # cadence, since there is no subscription to tell us one.
+        membership = payment.membership
+        # The next period renews itself if this payment left us a card.
+        membership.auto_renew = membership.has_usable_card
+        membership.charge_attempted_at = None
+        membership.save(update_fields=[
+            'auto_renew', 'charge_attempted_at', 'updated_at',
+        ])
+        membership.extend()
+
+
+def _card_saved(data):
+    """A card was kept at the end of a checkout.
+
+    This is where the free week is decided, because this is the event that
+    says what the card is. A card that has already had its week does not
+    get another one under a new email address -- which is the only reason
+    one is asked for.
+    """
+    customer = data.get('customer') or {}
+    customer_id = customer.get('customer_id') or customer.get('id') or ''
+    # By the address first. It is the one we opened the checkout with, so
+    # it is ours; their customer id is only as good as the assumption that
+    # one id means one account, and filing somebody's card -- and their
+    # trial -- against the wrong person is the expensive way to be wrong.
+    membership = _membership_for_customer(customer_id, customer.get('email', ''))
+    if membership is None:
+        logger.warning('a card was saved for a customer we do not know: %s', customer_id)
+        return
+
+    membership.remember_card(
+        brand=data.get('card_brand', ''),
+        last4=data.get('card_last4', ''),
+        exp_month=data.get('card_exp_month'),
+        exp_year=data.get('card_exp_year'),
+        payment_method_id=data.get('payment_method_id', ''),
+        customer_id=customer_id,
+    )
+
+    if membership.state in ('trial', 'active'):
+        # Already a member, so this is a card going on file rather than a
+        # week being asked for. If it is one we may use, the period after
+        # this one can renew itself -- including for somebody who had to
+        # pay by hand last time because their bank refused us.
+        if membership.has_usable_card and not membership.auto_renew:
+            membership.auto_renew = True
+            membership.save(update_fields=['auto_renew', 'updated_at'])
+        return
+
+    if membership.trial_used:
+        return          # this account has had its week
+
+    if Membership.trial_taken_on_card(
+        membership.card_signature, exclude_user=membership.user,
+    ):
+        logger.info('free week refused: that card has had one (user %s)', membership.user_id)
+        membership.refuse_trial()
+        _say_the_card_has_had_its_week(membership)
+        return
+
+    plan = membership.plan
+    if plan is None:
+        logger.warning('a card was proved with no plan chosen (user %s)', membership.user_id)
+        return
+
+    # A card we are allowed to use means the week will try to renew itself
+    # when it ends; the screen says so, and the reminder warns before it.
+    membership.start_trial(
+        plan, membership.cadence, auto_renew=membership.has_usable_card,
+    )
+
+
+def _membership_for_customer(customer_id, email=''):
+    """Whose membership this card belongs to.
+
+    By the address the checkout was opened with, and only then by their
+    customer id: `payment_method.saved` can arrive before the payment event
+    that would have taught us the id, and the address is the one we gave
+    them in the first place.
+    """
+    if email:
+        user = get_user_model().objects.filter(email__iexact=email.strip()).first()
+        if user is not None:
+            found = Membership.objects.filter(user=user).first()
+            if found is not None:
+                return found
+    if not customer_id:
+        return None
+    return Membership.objects.filter(customer_id=customer_id).first()
+
+
+def _say_the_card_has_had_its_week(membership):
+    """Tell them plainly, and point at the thing they can still do."""
+    from notifications.push import notify
+
+    notify(
+        membership.user,
+        kind='plain',
+        title='That card has already had a free week',
+        body=(
+            'The hundred naira we took to check it is on its way back. You '
+            'can still start your membership whenever you are ready.'
+        ),
+        target='subscription',
+    )
+
+
+def _charge_id(data):
+    """Their id for the money, which a refund is asked for by."""
+    return (
+        data.get('charge_id')
+        or data.get('payment_id')
+        or (data.get('charge') or {}).get('id', '')
+        or data.get('id', '')
+    )
 
 
 def _invoice_paid(data):
@@ -554,6 +883,4 @@ def _as_datetime(value):
 
 
 def _return_url():
-    from django.conf import settings
-
     return getattr(settings, 'BACHS_RETURN_URL', '') or settings.SITE_URL

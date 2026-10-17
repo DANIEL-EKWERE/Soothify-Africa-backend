@@ -22,12 +22,50 @@ class PlanAdmin(admin.ModelAdmin):
 
 @admin.register(Membership)
 class MembershipAdmin(admin.ModelAdmin):
-    list_display = ('user', 'plan', 'cadence', 'state', 'trial_ends_at', 'renews_at')
-    list_filter = ('state', 'cadence')
-    search_fields = ('user__email',)
-    # The card details come from Paystack and must not be edited by hand.
+    list_display = ('user', 'plan', 'cadence', 'state', 'renews_at',
+                    'renews_itself', 'free_week')
+    list_filter = ('state', 'cadence', 'auto_renew')
+    search_fields = ('user__email', 'card_last4')
+    actions = ('allow_the_free_week_again',)
+
+    # The card comes from Bachs and must not be edited by hand. The
+    # signature is derived from it, so hand-editing that would only make
+    # the duplicate check disagree with the card it came from.
     readonly_fields = ('customer_id', 'subscription_id', 'card_brand',
-                       'card_last4', 'created_at', 'updated_at')
+                       'card_last4', 'card_exp_month', 'card_exp_year',
+                       'payment_method_id', 'card_signature',
+                       'trial_started_at', 'created_at', 'updated_at')
+
+    @admin.display(boolean=True, description='renews itself')
+    def renews_itself(self, obj):
+        return obj.auto_renew
+
+    @admin.display(description='free week')
+    def free_week(self, obj):
+        """Taken, refused, or still going -- the question support is asked."""
+        if obj.trial_started_at:
+            return 'taken {0}'.format(obj.trial_started_at.date())
+        if obj.trial_refused_at:
+            return 'refused (card had one)'
+        return 'available'
+
+    @admin.action(description='Allow the free week again')
+    def allow_the_free_week_again(self, request, queryset):
+        """Undo a refusal.
+
+        A card is recognised by its brand, last four digits and expiry, and
+        two strangers can share all three -- so a refusal is occasionally
+        wrong, and the person it was wrong about should not need a developer.
+
+        Only clears a refusal. A week actually taken stays taken.
+        """
+        cleared = queryset.filter(
+            trial_refused_at__isnull=False, trial_started_at__isnull=True,
+        ).update(trial_refused_at=None)
+        self.message_user(
+            request,
+            'The free week is on offer again for {0} of them.'.format(cleared),
+        )
 
 
 @admin.register(Payment)

@@ -1,0 +1,87 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Applications{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Applications</h1>
+    <p>People asking to practise on Soothify. Every one is read by a person.</p>
+  </div>
+</div>
+
+<section class="panel" style="margin-bottom:20px">
+  <div class="panel__head">
+    <div>
+      <h2>Waiting for review</h2>
+      <p>{{ waiting_count }} application{{ waiting_count|pluralize }} nobody has decided on.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    {% if waiting %}
+      <table class="table">
+        <tbody>
+        {% for row in waiting %}
+          <tr>
+            <td>
+              <strong>{{ row.full_name }}</strong>
+              <span class="table__sub">{{ row.email }}</span>
+            </td>
+            <td style="width:220px">
+              {{ row.disciplines_display|default:"—" }}
+              <span class="table__sub">{{ row.experience_years }} year{{ row.experience_years|pluralize }}</span>
+            </td>
+            <td style="width:120px">
+              {% if row.source == "web" %}<span class="pill">Website</span>{% else %}<span class="pill">App</span>{% endif %}
+            </td>
+            <td style="width:120px">
+              <span class="table__sub">{{ row.created_at|date:"j M" }}</span>
+            </td>
+            <td style="width:110px;text-align:right">
+              <a class="btn btn--quiet btn--small" href="{% url 'dashboard:application-detail' row.pk %}">Read</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <table class="table"><tbody><tr><td class="table__empty">
+        Nothing waiting. Applications land here as they arrive.
+      </td></tr></tbody></table>
+    {% endif %}
+  </div>
+</section>
+
+{% if decided %}
+<section class="panel">
+  <div class="panel__head">
+    <div>
+      <h2>Already decided</h2>
+      <p>Kept because "did we turn that person down, and why?" gets asked later.</p>
+    </div>
+  </div>
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <tbody>
+      {% for row in decided %}
+        <tr>
+          <td>
+            <strong>{{ row.full_name }}</strong>
+            <span class="table__sub">{{ row.email }}</span>
+          </td>
+          <td style="width:220px">{{ row.disciplines_display|default:"—" }}</td>
+          <td style="width:130px">
+            {% if row.status == "approved" %}<span class="pill pill--good">Approved</span>
+            {% else %}<span class="pill pill--bad">Turned down</span>{% endif %}
+          </td>
+          <td style="width:120px"><span class="table__sub">{{ row.reviewed_at|date:"j M" }}</span></td>
+          <td style="width:110px;text-align:right">
+            <a class="btn btn--quiet btn--small" href="{% url 'dashboard:application-detail' row.pk %}">Open</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

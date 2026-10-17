@@ -22,6 +22,11 @@ urlpatterns = [
     path('media/<int:pk>/', views.media_edit, name='media-edit'),
     path('media/<int:pk>/publish/', views.media_publish, name='media-publish'),
 
+    path('applications/', views.applications, name='applications'),
+    path('applications/<int:pk>/', views.application_detail, name='application-detail'),
+    path('applications/<int:pk>/decide/', views.application_decide,
+         name='application-decide'),
+
     path('sessions/', views.sessions, name='sessions'),
     path('recordings/', views.recordings, name='recordings'),
     path('people/', views.people, name='people'),

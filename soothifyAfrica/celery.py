@@ -31,6 +31,25 @@ app.conf.beat_schedule = {
         'task': 'billing.tasks.reconcile_subscriptions',
         'schedule': crontab(hour=6, minute=0),
     },
+    # While memberships are sold a period at a time (MEMBERSHIP_BILLING),
+    # these two are the renewal cycle: nothing charges itself, so members
+    # are warned before their period runs out, and it ends when it ends.
+    'charge-memberships': {
+        'task': 'billing.tasks.charge_due_memberships',
+        'schedule': crontab(hour=6, minute=15),
+    },
+    'give-up-stuck-charges': {
+        'task': 'billing.tasks.give_up_on_stuck_charges',
+        'schedule': crontab(hour=6, minute=20),
+    },
+    'membership-reminders': {
+        'task': 'billing.tasks.send_renewal_reminders',
+        'schedule': crontab(hour=6, minute=30),
+    },
+    'expire-memberships': {
+        'task': 'billing.tasks.expire_lapsed_memberships',
+        'schedule': crontab(hour=6, minute=45),
+    },
     # Reminders go out the morning of a session, to whoever asked for them.
     'session-reminders': {
         'task': 'experts.tasks.send_session_reminders',

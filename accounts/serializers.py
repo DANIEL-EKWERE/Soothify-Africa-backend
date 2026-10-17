@@ -25,15 +25,29 @@ def tokens_for(user):
 class ProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
     kyc_complete = serializers.SerializerMethodField()
+
+    # Whether this account has a password at all. False for one opened with
+    # Google or Apple, which changes what "confirm it is you" can ask for --
+    # see DeleteAccountView.
+    has_password = serializers.SerializerMethodField()
+
+    # Two fields for one photo: `avatar` takes the upload, `avatar_url`
+    # gives back a link that can actually be shown. The stored path is
+    # private, so what is read back is a signed URL and never the path.
+    avatar = serializers.ImageField(write_only=True, required=False)
     avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = (
             'id', 'email', 'full_name', 'role', 'language', 'community_handle',
-            'mood_figure', 'avatar_url', 'kyc_complete', 'created_at',
+            'mood_figure', 'avatar', 'avatar_url', 'kyc_complete',
+            'has_password', 'created_at',
         )
         read_only_fields = ('id', 'role', 'created_at')
+
+    def get_has_password(self, obj):
+        return obj.user.has_usable_password()
 
     def get_kyc_complete(self, obj):
         kyc = getattr(obj.user, 'kyc', None)

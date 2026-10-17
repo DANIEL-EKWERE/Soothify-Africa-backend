@@ -1,0 +1,94 @@
+{% extends "home/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% translate "Become an Expert" %} — Soothify Africa{% endblock %}
+{% block description %}{% translate "Apply to take sessions on Soothify Africa." %}{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% comment %}
+  One step of the app's form — `259:59145`, `259:59179`, `259:59198`.
+
+  The app's chrome: a back arrow, then the three progress segments. The
+  fields keep the frames' own rhythm — 8 between a question and its
+  control, 16 between a control and the next question, 45 before the
+  button.
+{% endcomment %}
+{% block body %}
+<main class="xp">
+  <div class="xp__col">
+    <div class="xp-head">
+      <a class="xp-back" aria-label="{% translate 'Back' %}"
+         href="{% if step == 1 %}{% url 'home:practitioner_apply' %}{% else %}{% url 'home:practitioner_apply_step' step|add:'-1' %}{% endif %}">
+        <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 2L4 8l6 6"/>
+        </svg>
+      </a>
+      <ol class="xp-steps" aria-label="{% blocktranslate %}Step {{ step }} of {{ total_steps }}{% endblocktranslate %}">
+        {% for i in "123" %}
+          <li class="xp-steps__seg{% if forloop.counter <= step %} is-done{% endif %}"></li>
+        {% endfor %}
+      </ol>
+    </div>
+
+    <form class="xp-form" method="post" enctype="multipart/form-data" novalidate
+          action="{% url 'home:practitioner_apply_step' step %}">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <p class="xp-error">{{ form.non_field_errors|join:" " }}</p>
+      {% endif %}
+
+      {% for field in form %}
+        {% if field.name == "website" %}
+          {# Not shown to anybody. Only an automated submitter fills it in. #}
+          <div class="xp-trap" aria-hidden="true">{{ field }}</div>
+        {% elif field.name == "disciplines" or field.name == "languages" %}
+          <fieldset class="xp-group">
+            <legend class="xp-label">{{ field.label }}</legend>
+            <div class="xp-options">
+              {% for opt in field %}
+                <label class="xp-option">
+                  {{ opt.tag }}
+                  <span class="xp-option__label">{{ opt.choice_label }}</span>
+                  <span class="xp-option__tick" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 8.5l3.5 3.5L13 5"/>
+                    </svg>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+            {% for error in field.errors %}<p class="xp-error">{{ error }}</p>{% endfor %}
+          </fieldset>
+        {% elif field.name == "certification" or field.name == "identity" %}
+          <div class="xp-field xp-upload{% if field.errors %} is-invalid{% endif %}">
+            <label class="xp-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            <p class="xp-hint">{% blocktranslate %}PDF, JPG or PNG, up to {{ max_upload_mb }} MB.{% endblocktranslate %}</p>
+            {% for error in field.errors %}<p class="xp-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% elif field.name == "agreed" %}
+          <label class="xp-agree{% if field.errors %} is-invalid{% endif %}">
+            {{ field }}
+            <span>{{ field.label }}</span>
+          </label>
+          {% for error in field.errors %}<p class="xp-error">{{ error }}</p>{% endfor %}
+        {% else %}
+          <div class="xp-field{% if field.errors %} is-invalid{% endif %}">
+            <label class="xp-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<p class="xp-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <button class="xp-btn xp-form__next" type="submit">
+        {% if is_last %}{% translate "Submit Application" %}{% else %}{% translate "Next" %}{% endif %}
+      </button>
+    </form>
+  </div>
+</main>
+{% endblock %}
+
+{% block footer %}{% endblock %}

@@ -6,16 +6,21 @@ join its call, and a client never sees the practitioner's notes.
 """
 
 import datetime
+from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import Profile, Role
 from api.testing import ApiTestCase
 from experts.models import (
+    Application,
     AvailabilitySlot,
     ExpertProfile,
     Payout,
+    PayoutMethod,
     Session,
     SessionNote,
 )
@@ -385,3 +390,392 @@ class RatingTests(BookingTestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+
+class ApplicationTests(ApiTestCase):
+    """Becoming a practitioner: the form, its files, and what follows."""
+
+    def setUp(self):
+        super().setUp()
+        Profile.create_user(
+            email='dera@example.com', password='Soothify2026', full_name='Dera Eze',
+        )
+        self.token = self.signed_in_as('dera@example.com', 'Soothify2026')
+        self.url = reverse('api:experts:applications')
+
+    def document(self, name='licence.pdf', content=b'%PDF-1.4 fake'):
+        return SimpleUploadedFile(name, content, content_type='application/pdf')
+
+    def apply(self, token=None, **overrides):
+        """As the app sends it: multipart, because the files travel with it."""
+        payload = {
+            'full_name': 'Dera Eze',
+            # Repeated keys, which is all a multipart form can do with a list.
+            'disciplines': ['therapy', 'yoga'],
+            'languages': ['english', 'pidgin'],
+            'experience_years': 6,
+            'bio': 'Ten years in private practice.',
+            'portfolio_url': 'https://dera.example',
+            'licence_number': 'NG-PSY-4421',
+            'insurance_provider': 'Leadway',
+            'certification': self.document(),
+            'identity': self.document('nin.jpg', b'\xff\xd8\xff fake'),
+        }
+        payload.update(overrides)
+        return self.client.post(
+            self.url, payload, HTTP_AUTHORIZATION=token or self.token,
+        )
+
+    def test_an_application_arrives_with_both_documents(self):
+        response = self.apply()
+
+        self.assertEqual(response.status_code, 201)
+        application = Application.objects.get()
+        self.assertEqual(application.full_name, 'Dera Eze')
+        self.assertEqual(application.status, 'submitted')
+        self.assertEqual(
+            {doc.kind for doc in application.documents.all()},
+            {'certification', 'identity'},
+        )
+
+    def test_more_than_one_discipline_survives_the_form(self):
+        # A multipart form repeats the key rather than nesting JSON. Reading
+        # only the last value is how a therapist who also teaches yoga used
+        # to arrive as a yoga teacher.
+        self.apply()
+
+        self.assertEqual(
+            Application.objects.get().disciplines, ['therapy', 'yoga'],
+        )
+
+    def test_a_comma_joined_list_is_read_the_same_way(self):
+        # Which is what an HTML form with one hidden input sends -- the web
+        # version of this flow.
+        self.apply(disciplines='therapy,pilates', languages='english')
+
+        self.assertEqual(
+            Application.objects.get().disciplines, ['therapy', 'pilates'],
+        )
+
+    def test_the_rest_of_the_form_is_kept(self):
+        self.apply()
+
+        application = Application.objects.get()
+        self.assertEqual(application.portfolio_url, 'https://dera.example')
+        self.assertEqual(application.licence_number, 'NG-PSY-4421')
+        self.assertEqual(application.insurance_provider, 'Leadway')
+        self.assertEqual(application.experience_years, 6)
+
+    def test_an_application_with_no_discipline_is_refused(self):
+        response = self.apply(disciplines=[])
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('disciplines', response.json())
+        self.assertFalse(Application.objects.exists())
+
+    def test_something_we_do_not_offer_is_refused(self):
+        response = self.apply(disciplines=['astrology'])
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_an_applicant_can_see_where_theirs_stands(self):
+        self.apply()
+
+        rows = self.client.get(self.url, HTTP_AUTHORIZATION=self.token).json()
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['status'], 'submitted')
+        self.assertEqual(rows[0]['status_display'], 'Submitted')
+        # The documents come back as links, not as files.
+        self.assertEqual(len(rows[0]['documents']), 2)
+
+    def test_nobody_sees_anybody_elses_application(self):
+        self.apply()
+        Profile.create_user(email='bola@example.com', password='Soothify2026')
+        other = self.signed_in_as('bola@example.com', 'Soothify2026')
+
+        rows = self.client.get(self.url, HTTP_AUTHORIZATION=other).json()
+
+        self.assertEqual(rows, [])
+
+    def test_applying_needs_an_account(self):
+        response = self.client.post(self.url, {'full_name': 'Nobody'})
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_approving_carries_every_discipline_onto_the_expert(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        from experts.admin import ApplicationAdmin
+
+        self.apply()
+        application = Application.objects.get()
+        # A real request: the action tells the reviewer how many it approved,
+        # and messages need somewhere to go.
+        request = RequestFactory().post('/admin/')
+        request.user = application.user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        ApplicationAdmin(Application, AdminSite()).approve(
+            request, Application.objects.all(),
+        )
+
+        expert = ExpertProfile.objects.get()
+        # Both, not just the first: that is the whole point of the change.
+        self.assertEqual(expert.disciplines, ['therapy', 'yoga'])
+        application.refresh_from_db()
+        self.assertEqual(application.status, 'approved')
+
+
+class PayoutMethodTests(ApiTestCase):
+    """Adding the account a practitioner is paid into."""
+
+    def setUp(self):
+        super().setUp()
+        self.expert = make_expert(email='coach2@example.com')
+        self.token = self.signed_in_as('coach2@example.com', 'Soothify2026')
+        self.url = reverse('api:experts:my-payout-methods')
+
+    def add(self, **overrides):
+        payload = {
+            'kind': 'bank',
+            'bank_name': 'GTBank',
+            'account_number': '0123456789',
+            'bank_code': '058',
+        }
+        payload.update(overrides)
+        return self.client.post(
+            self.url, payload, content_type='application/json',
+            HTTP_AUTHORIZATION=self.token,
+        )
+
+    def test_the_account_is_resolved_and_turned_into_a_destination(self):
+        with patch('billing.bachs.resolve_account',
+                   return_value={'account_name': 'DERA EZE'}) as resolve, \
+             patch('billing.bachs.create_payout_destination',
+                   return_value={'destination_id': 'dest_1'}) as destination:
+            response = self.add()
+
+        self.assertEqual(response.status_code, 201)
+        resolve.assert_called_once_with('0123456789', '058')
+        self.assertEqual(destination.call_args.kwargs['account_number'], '0123456789')
+
+        method = PayoutMethod.objects.get()
+        self.assertEqual(method.destination_id, 'dest_1')
+        # Their name on the account, not whatever was typed: a payout to a
+        # mistyped name is somebody else's money.
+        self.assertEqual(method.account_name, 'DERA EZE')
+
+    def test_the_account_number_itself_is_never_stored(self):
+        with patch('billing.bachs.resolve_account', return_value={'account_name': 'D E'}), \
+             patch('billing.bachs.create_payout_destination',
+                   return_value={'destination_id': 'dest_1'}):
+            self.add()
+
+        method = PayoutMethod.objects.get()
+        self.assertEqual(method.last4, '6789')
+        stored = ' '.join(
+            str(value) for value in PayoutMethod.objects.values().first().values()
+        )
+        self.assertNotIn('0123456789', stored)
+
+    def test_a_bank_account_needs_its_number_and_its_bank(self):
+        response = self.client.post(
+            self.url, {'kind': 'bank', 'bank_name': 'GTBank'},
+            content_type='application/json', HTTP_AUTHORIZATION=self.token,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('account_number', response.json())
+
+    def test_an_account_bachs_will_not_take_is_not_saved(self):
+        from billing.bachs import BachsError
+
+        with patch('billing.bachs.resolve_account',
+                   side_effect=BachsError('No such account')):
+            response = self.add()
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn('No such account', response.json()['detail'])
+        self.assertFalse(PayoutMethod.objects.exists())
+
+    def test_a_new_default_account_demotes_the_old_one(self):
+        with patch('billing.bachs.resolve_account', return_value={'account_name': 'D E'}), \
+             patch('billing.bachs.create_payout_destination',
+                   return_value={'destination_id': 'dest_1'}):
+            self.add()
+            self.add(bank_name='Kuda', account_number='9876543210')
+
+        defaults = PayoutMethod.objects.filter(is_default=True)
+        self.assertEqual(defaults.count(), 1)
+        self.assertEqual(defaults.get().bank_name, 'Kuda')
+
+    def test_a_client_has_no_payout_methods_to_add(self):
+        Profile.create_user(email='ada2@example.com', password='Soothify2026')
+        client_token = self.signed_in_as('ada2@example.com', 'Soothify2026')
+
+        response = self.client.get(self.url, HTTP_AUTHORIZATION=client_token)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_the_bank_list_comes_from_bachs_and_is_cached(self):
+        from django.core.cache import cache
+
+        cache.delete('bachs:banks:NG')
+        url = reverse('api:experts:my-banks')
+
+        with patch('billing.bachs.list_banks',
+                   return_value=[{'code': '058', 'name': 'GTBank'}]) as listed:
+            first = self.client.get(url, HTTP_AUTHORIZATION=self.token).json()
+            second = self.client.get(url, HTTP_AUTHORIZATION=self.token).json()
+
+        self.assertEqual(first, [{'code': '058', 'name': 'GTBank'}])
+        self.assertEqual(second, first)
+        # The same answer for everyone all day; asking twice is a wasted call.
+        self.assertEqual(listed.call_count, 1)
+
+
+class WithdrawalTests(ApiTestCase):
+    """Asking to be paid, and what it takes for money to actually move."""
+
+    def setUp(self):
+        super().setUp()
+        self.expert = make_expert(email='coach3@example.com')
+        self.token = self.signed_in_as('coach3@example.com', 'Soothify2026')
+        self.url = reverse('api:experts:my-payouts')
+        self.method = PayoutMethod.objects.create(
+            expert=self.expert, bank_name='GTBank', account_name='C O',
+            last4='6789', destination_id='dest_1', is_default=True,
+        )
+        Profile.create_user(
+            email='ada3@example.com', password='Soothify2026', full_name='Ada',
+        )
+        self.client_user = get_user_model().objects.get(email='ada3@example.com')
+
+    def earn(self, naira=50000):
+        """A completed session is where an available balance comes from."""
+        Session.objects.create(
+            expert=self.expert, client=self.client_user, discipline='therapy',
+            starts_at=timezone.now() - datetime.timedelta(days=2),
+            ends_at=timezone.now() - datetime.timedelta(days=2, hours=-1),
+            status='completed', price_naira=naira,
+        )
+
+    def ask_for(self, naira):
+        return self.client.post(
+            self.url, {'amount_naira': naira},
+            content_type='application/json', HTTP_AUTHORIZATION=self.token,
+        )
+
+    def test_a_withdrawal_is_recorded_pending_not_paid(self):
+        self.earn()
+
+        response = self.ask_for(20000)
+
+        self.assertEqual(response.status_code, 201)
+        payout = Payout.objects.get()
+        # Recorded, not sent: a person sends it.
+        self.assertEqual(payout.status, 'pending')
+        self.assertEqual(payout.amount_naira, 20000)
+        self.assertEqual(payout.method, self.method)
+
+    def test_nobody_can_withdraw_more_than_they_have_earned(self):
+        self.earn(50000)
+
+        response = self.ask_for(60000)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['available_naira'], 50000)
+        self.assertFalse(Payout.objects.exists())
+
+    def test_a_pending_request_counts_against_the_balance(self):
+        self.earn(50000)
+        self.ask_for(40000)
+
+        # Asking twice for most of it is how a balance gets paid out twice.
+        response = self.ask_for(40000)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Payout.objects.count(), 1)
+
+    def test_a_withdrawal_needs_somewhere_to_land(self):
+        self.earn()
+        PayoutMethod.objects.all().delete()
+
+        response = self.ask_for(10000)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('account', response.json()['detail'])
+
+    def test_the_destination_is_not_the_requester_to_choose(self):
+        self.earn()
+
+        # A destination in the request body is ignored: it is the account on
+        # file, verified with the bank when it was added.
+        self.client.post(
+            self.url,
+            {'amount_naira': 10000, 'method': 999, 'destination_id': 'dest_evil'},
+            content_type='application/json', HTTP_AUTHORIZATION=self.token,
+        )
+
+        self.assertEqual(Payout.objects.get().method, self.method)
+
+    def test_a_client_cannot_ask_to_be_paid(self):
+        other = self.signed_in_as('ada3@example.com', 'Soothify2026')
+
+        response = self.client.post(
+            self.url, {'amount_naira': 1000},
+            content_type='application/json', HTTP_AUTHORIZATION=other,
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_sending_one_pays_it_through_bachs_once(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        from experts.admin import PayoutAdmin
+
+        self.earn()
+        self.ask_for(20000)
+        request = RequestFactory().post('/admin/')
+        request.user = self.client_user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+        admin = PayoutAdmin(Payout, AdminSite())
+
+        with patch('billing.bachs.create_payout',
+                   return_value={'payout_id': 'po_1'}) as pay:
+            admin.send_payout(request, Payout.objects.all())
+            # A second click must not pay a second time.
+            admin.send_payout(request, Payout.objects.all())
+
+        self.assertEqual(pay.call_count, 1)
+        payout = Payout.objects.get()
+        self.assertEqual(payout.status, 'sent')
+        self.assertEqual(payout.reference, 'po_1')
+        self.assertIsNotNone(payout.paid_on)
+
+    def test_a_payout_bachs_refuses_stays_pending(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        from billing.bachs import BachsError
+        from experts.admin import PayoutAdmin
+
+        self.earn()
+        self.ask_for(20000)
+        request = RequestFactory().post('/admin/')
+        request.user = self.client_user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        with patch('billing.bachs.create_payout', side_effect=BachsError('no')):
+            PayoutAdmin(Payout, AdminSite()).send_payout(
+                request, Payout.objects.all(),
+            )
+
+        # Still owed, and still visible as owed.
+        self.assertEqual(Payout.objects.get().status, 'pending')

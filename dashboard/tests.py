@@ -10,9 +10,10 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
-from accounts.models import Profile
+from accounts.models import PasswordResetCode, Profile, Role
 from api.testing import ApiTestCase
 from content.models import Category, MediaItem, Shelf, ShelfItem
+from experts.models import Application, ApplicationDocument, ExpertProfile
 from home.models import WaitlistSignup
 
 PAGES = (
@@ -24,6 +25,7 @@ PAGES = (
     '/dashboard/sessions/',
     '/dashboard/recordings/',
     '/dashboard/people/',
+    '/dashboard/applications/',
 )
 
 
@@ -287,3 +289,116 @@ class LookTests(StaffTestCase):
         response = self.client.get('/dashboard/recordings/')
 
         self.assertContains(response, 'recorded against your name')
+
+
+class ApplicationReviewTests(StaffTestCase):
+    """Reading an application, and deciding on it.
+
+    Approving is the part that matters: it is what lets somebody take
+    sessions with clients, so it has to do the whole job -- the role, the
+    expert profile, and a way in for an applicant who has no account.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.application = Application.objects.create(
+            full_name='Dera Eze',
+            email='dera@example.com',
+            phone='+2348030000000',
+            source='web',
+            disciplines=['therapy', 'yoga'],
+            languages=['english'],
+            experience_years=6,
+            bio='Ten years in private practice.',
+        )
+        ApplicationDocument.objects.create(
+            application=self.application, kind='certification',
+            file=SimpleUploadedFile('licence.pdf', b'%PDF-1.4', content_type='application/pdf'),
+        )
+        self.url = reverse('dashboard:application-detail', args=[self.application.pk])
+
+    def decide(self, decision, notes=''):
+        return self.client.post(
+            reverse('dashboard:application-decide', args=[self.application.pk]),
+            {'decision': decision, 'notes': notes},
+        )
+
+    def test_the_queue_lists_who_is_waiting(self):
+        page = self.client.get('/dashboard/applications/').content.decode()
+
+        self.assertIn('Dera Eze', page)
+        self.assertIn('Therapy, Yoga', page)
+        # Where it came from, because a website application has no account
+        # behind it and that changes what approving does.
+        self.assertIn('Website', page)
+
+    def test_an_application_reads_in_full(self):
+        page = self.client.get(self.url).content.decode()
+
+        self.assertIn('Ten years in private practice.', page)
+        self.assertIn('+2348030000000', page)
+        # In words: "english, pidgin" is how it is stored, not how it reads.
+        self.assertIn('English', page)
+        self.assertNotIn('>english<', page)
+        # The certificate, behind a link that expires: it goes through the
+        # signed endpoint and carries a signature, rather than pointing at
+        # the file where it sits.
+        self.assertIn('Open', page)
+        self.assertIn('/api/v1/media/', page)
+        self.assertNotIn('href="/media/', page)
+        self.assertNotIn('src="/media/', page)
+
+    def test_approving_makes_them_a_practitioner(self):
+        self.decide('approve', notes='Checked the register.')
+
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, 'approved')
+        self.assertEqual(self.application.reviewed_by, self.staff)
+
+        user = get_user_model().objects.get(email='dera@example.com')
+        self.assertEqual(user.profile.role, Role.PRACTITIONER)
+        expert = ExpertProfile.objects.get(profile=user.profile)
+        # Everything they said they practise, not just the first.
+        self.assertEqual(expert.disciplines, ['therapy', 'yoga'])
+
+    def test_an_applicant_with_no_account_gets_one_without_a_password(self):
+        self.decide('approve')
+
+        user = get_user_model().objects.get(email='dera@example.com')
+        # A password nobody chose is one somebody else might guess.
+        self.assertFalse(user.has_usable_password())
+        # And a code to choose one with.
+        self.assertTrue(PasswordResetCode.objects.filter(user=user).exists())
+
+    def test_approving_twice_does_not_make_a_second_expert(self):
+        self.decide('approve')
+        self.decide('approve')
+
+        self.assertEqual(ExpertProfile.objects.count(), 1)
+
+    def test_turning_one_down_keeps_the_reason_for_us(self):
+        self.decide('reject', notes='Certificate is for a different person.')
+
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, 'rejected')
+        self.assertIn('different person', self.application.review_notes)
+        # Nobody is made a practitioner by being turned down.
+        self.assertFalse(ExpertProfile.objects.exists())
+
+    def test_the_applicant_is_never_shown_the_review_notes(self):
+        self.decide('reject', notes='Too thin to judge.')
+
+        # They are written for colleagues; the applicant hears from us in
+        # our own words. Nothing in the API serves this field.
+        from experts.serializers import ApplicationSerializer
+        self.assertNotIn('review_notes', ApplicationSerializer.Meta.fields)
+
+    def test_an_ordinary_member_cannot_decide(self):
+        Profile.create_user(email='ada@example.com', password='Soothify2026')
+        self.client.force_login(get_user_model().objects.get(email='ada@example.com'))
+
+        response = self.decide('approve')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/dashboard/login/', response['Location'])
+        self.assertFalse(ExpertProfile.objects.exists())

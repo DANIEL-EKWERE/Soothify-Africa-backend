@@ -1,6 +1,6 @@
 """Reviewing applications, and keeping an eye on bookings."""
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils import timezone
 
 from accounts.models import Role
@@ -35,38 +35,41 @@ class ApplicationDocumentInline(admin.TabularInline):
 
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'field', 'status', 'created_at', 'reviewed_at')
-    list_filter = ('status', 'field', 'created_at')
-    search_fields = ('full_name', 'user__email')
-    readonly_fields = ('user', 'full_name', 'field', 'languages', 'experience_years',
-                       'bio', 'created_at', 'reviewed_by', 'reviewed_at')
+    list_display = ('full_name', 'practises', 'status', 'created_at', 'reviewed_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('full_name', 'user__email', 'licence_number')
+    readonly_fields = ('user', 'full_name', 'disciplines', 'languages',
+                       'experience_years', 'bio', 'portfolio_url',
+                       'licence_number', 'insurance_provider', 'created_at',
+                       'reviewed_by', 'reviewed_at')
     inlines = [ApplicationDocumentInline]
     actions = ['approve']
 
+    @admin.display(description='practises')
+    def practises(self, obj):
+        return obj.disciplines_display
+
     @admin.action(description='Approve: create the expert and switch their role')
     def approve(self, request, queryset):
+        """The same approval the dashboard performs -- see Application.approve.
+
+        One implementation, because two would drift and the drift would be
+        about who is allowed to take sessions.
+        """
         made = 0
+        invited = 0
         for application in queryset.exclude(status='approved'):
-            profile = getattr(application.user, 'profile', None)
-            if profile is None:
-                continue
-            profile.role = Role.PRACTITIONER
-            profile.save(update_fields=['role'])
-            ExpertProfile.objects.get_or_create(
-                profile=profile,
-                defaults={
-                    'disciplines': [application.field],
-                    'languages': application.languages,
-                    'years_experience': application.experience_years,
-                    'bio': application.bio,
-                },
-            )
-            application.status = 'approved'
-            application.reviewed_by = request.user
-            application.reviewed_at = timezone.now()
-            application.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+            _profile, was_invited = application.approve(reviewer=request.user)
             made += 1
-        self.message_user(request, '{0} approved.'.format(made))
+            invited += 1 if was_invited else 0
+
+        message = '{0} approved.'.format(made)
+        if invited:
+            message += (
+                ' {0} had no account; one was made with no password, so they '
+                'need a "set your password" email.'.format(invited)
+            )
+        self.message_user(request, message)
 
 
 @admin.register(Session)
@@ -85,8 +88,73 @@ class AvailabilitySlotAdmin(admin.ModelAdmin):
 
 @admin.register(Payout)
 class PayoutAdmin(admin.ModelAdmin):
-    list_display = ('expert', 'amount_naira', 'status', 'paid_on', 'created_at')
+    """Payouts, and the one place money is actually sent.
+
+    A practitioner's withdrawal arrives here as `pending`. Nothing sends it
+    automatically: a request over HTTP is a request, and money leaving the
+    business on the strength of one nobody read is how a bug becomes a bank
+    transfer. Somebody selects it and sends it.
+    """
+
+    list_display = ('expert', 'amount_naira', 'destination', 'status',
+                    'paid_on', 'created_at')
     list_filter = ('status', 'paid_on')
+    search_fields = ('expert__profile__user__email', 'reference')
+    actions = ('send_payout',)
+
+    @admin.display(description='into')
+    def destination(self, obj):
+        return str(obj.method) if obj.method_id else '--'
+
+    @admin.action(description='Send this payout to the practitioner')
+    def send_payout(self, request, queryset):
+        """Pay the pending ones, through Bachs, one at a time.
+
+        Each carries our own reference, which is also the idempotency key,
+        so a second click cannot pay twice. A payout with no destination is
+        skipped and named rather than guessed at.
+        """
+        from billing import bachs
+
+        sent = 0
+        for payout in queryset.filter(status='pending').select_related('method'):
+            destination = getattr(payout.method, 'destination_id', '')
+            if not destination:
+                self.message_user(
+                    request,
+                    'No payout destination for {0} -- ask them to add their '
+                    'account again.'.format(payout.expert),
+                    level=messages.WARNING,
+                )
+                continue
+
+            reference = payout.reference or 'po_{0}'.format(payout.pk)
+            try:
+                answer = bachs.create_payout(
+                    destination_id=destination,
+                    naira=payout.amount_naira,
+                    reference_=reference,
+                )
+            except bachs.BachsError as failure:
+                self.message_user(
+                    request,
+                    'Bachs refused the payout to {0}: {1}'.format(
+                        payout.expert, failure,
+                    ),
+                    level=messages.ERROR,
+                )
+                continue
+
+            payout.reference = (
+                answer.get('payout_id') or answer.get('id') or reference
+            )
+            payout.status = 'sent'
+            payout.paid_on = timezone.localdate()
+            payout.save(update_fields=['reference', 'status', 'paid_on'])
+            sent += 1
+
+        if sent:
+            self.message_user(request, '{0} payout(s) sent.'.format(sent))
 
 
 admin.site.register(PayoutMethod)

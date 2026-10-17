@@ -5,6 +5,7 @@ import logging
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -14,6 +15,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from api import jobs
 
+from .deletion import delete_account
 from .emails import send_reset_code
 from .models import KycResponse, PasswordResetCode, Profile
 from .social import profile_for, verify_apple, verify_google
@@ -135,10 +137,16 @@ class LogoutView(APIView):
 
 
 class MeView(generics.RetrieveUpdateAPIView):
-    """The signed-in person's own profile."""
+    """The signed-in person's own profile.
+
+    Multipart as well as JSON: the avatar is uploaded here, and a photo
+    cannot travel as JSON. Both parsers, so a plain name change does not
+    have to pretend to be a file upload.
+    """
 
     serializer_class = ProfileSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_object(self):
         profile, _ = Profile.objects.get_or_create(
@@ -285,3 +293,42 @@ class PasswordResetConfirmView(APIView):
             user=user, full_name=user.get_full_name(),
         )
         return Response(_session_payload(profile, request))
+
+
+class DeleteAccountView(APIView):
+    """Close this account and erase what is personal.
+
+    A POST, not a DELETE on /me/: the profile endpoint is a PATCH target
+    the app uses for ordinary edits, and the one irreversible action in
+    Settings should not be one wrong verb away from a name change.
+
+    The password is asked for again. Somebody who left their phone unlocked
+    on a table should not lose their journal to a passer-by, and a social
+    account -- which has no password -- confirms by typing its own address
+    instead.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    def post(self, request):
+        user = request.user
+        confirmation = (request.data.get('confirm') or '').strip()
+
+        if user.has_usable_password():
+            if not user.check_password(confirmation):
+                return Response(
+                    {'confirm': ['That password is not right.']},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif confirmation.lower() != (user.email or '').lower():
+            # Signed up with Google or Apple: there is no password to check,
+            # so the address is what proves this is them.
+            return Response(
+                {'confirm': ['Type your email address to confirm.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        delete_account(user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

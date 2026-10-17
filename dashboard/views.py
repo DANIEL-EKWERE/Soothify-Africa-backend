@@ -24,7 +24,11 @@ from django.views.decorators.http import require_POST
 from billing.models import Membership, Payment
 from content.models import Category, MediaItem, PlaybackEvent, Shelf
 from corporate.models import Enquiry
-from experts.models import ExpertProfile, Session
+from accounts.emails import send_reset_code
+from accounts.models import PasswordResetCode
+from api import jobs
+from api.media import signed_url
+from experts.models import Application, ExpertProfile, Session
 from home.models import WaitlistSignup
 from recordings.models import AccessLog, Flag, Recording
 from spaces.models import PassportWaitlistEntry
@@ -329,3 +333,82 @@ def _signups_by_day(signups, now, days=14):
             'label': day.strftime('%-d %b'),
         })
     return bars
+
+
+# --- practitioner applications ---------------------------------------------
+
+@staff_only
+def applications(request):
+    """People asking to practise here, newest first.
+
+    The queue is whoever has not been decided on. The rest stay listed
+    underneath, because "did we turn that person down, and why?" is a
+    question that gets asked weeks later.
+    """
+    rows = Application.objects.select_related('user').prefetch_related('documents')
+
+    waiting = rows.filter(status__in=('submitted', 'reviewing'))
+    decided = rows.exclude(status__in=('submitted', 'reviewing'))
+
+    return render(request, 'dashboard/applications.html', {
+        'page': 'applications',
+        'waiting': waiting[:PAGE_SIZE],
+        'decided': decided[:PAGE_SIZE],
+        'waiting_count': waiting.count(),
+    })
+
+
+@staff_only
+def application_detail(request, pk):
+    """One application, with its two documents behind signed links.
+
+    The documents open through `api.media.signed_url`: they are a
+    practising certificate and a government ID, and a link that expires is
+    the difference between showing a reviewer a document and publishing it.
+    """
+    application = get_object_or_404(
+        Application.objects.select_related('user').prefetch_related('documents'),
+        pk=pk,
+    )
+
+    documents = [
+        {
+            'kind': document.get_kind_display(),
+            'url': signed_url(document.file.name, request),
+            'uploaded_at': document.uploaded_at,
+        }
+        for document in application.documents.all()
+    ]
+
+    return render(request, 'dashboard/application_detail.html', {
+        'page': 'applications',
+        'application': application,
+        'documents': documents,
+    })
+
+
+@staff_only
+@require_POST
+def application_decide(request, pk):
+    """Approve or turn down one application.
+
+    Approving is not a status change: it makes the account a practitioner's
+    and creates the profile clients are matched against (see
+    Application.approve). Somebody who applied from the website has no
+    account, so one is made without a password and they are sent a link to
+    set one -- the ordinary reset, reused.
+    """
+    application = get_object_or_404(Application, pk=pk)
+    notes = request.POST.get('notes', '').strip()
+
+    if request.POST.get('decision') == 'approve':
+        _profile, invited = application.approve(reviewer=request.user, notes=notes)
+        if invited:
+            # No account before now, so no password either. The reset code
+            # is how they choose one.
+            code_row, code = PasswordResetCode.issue(application.user)
+            jobs.run(send_reset_code, application.user.pk, code)
+    else:
+        application.reject(reviewer=request.user, notes=notes)
+
+    return redirect('dashboard:application-detail', pk=application.pk)

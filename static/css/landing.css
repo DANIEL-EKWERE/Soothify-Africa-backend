@@ -2536,3 +2536,428 @@ p {
     transform: none;
   }
 }
+/* The quiet way into the practitioner application, under the footer's CTA. */
+.footer__practise {
+  margin: 20px 0 0;
+}
+
+.footer__practise a {
+  font: 400 15px/1.5 var(--font-body);
+  color: inherit;
+  opacity: .72;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer__practise a:hover {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Become an Expert — the application, as the app draws it.
+
+   Figma `259:59132` (intro), `259:59145`, `259:59179`, `259:59198` (the
+   three steps) and `259:59229` (submitted). The app is a 390-wide phone
+   frame; here the same column is centred on whatever the screen is, with
+   the measurements kept: 48-tall controls on an 8 radius, a #F9F9F9 fill
+   inside a hairline, 8 between a question and its control and 16 between
+   one control and the next question.
+
+   Named xp-* rather than reusing the waitlist's wl-*: this is the app's
+   look, not the website's form, and the two should be free to move apart.
+   --------------------------------------------------------------------------- */
+
+.xp {
+  --xp-blue: #2F6FED;
+  --xp-ink: #263238;
+  --xp-field: #F9F9F9;
+  --xp-rim: rgba(0, 0, 0, .08);
+  --xp-track: #ECF1F4;
+  --xp-muted: rgba(38, 50, 56, .62);
+  --xp-danger: #D64545;
+
+  padding: 24px 0 64px;
+  background: var(--c-pure, #FFF);
+}
+
+.xp__col {
+  width: min(390px, 100% - 48px);
+  margin-inline: auto;
+}
+
+/* intro ------------------------------------------------------------------ */
+
+.xp__col--intro {
+  text-align: center;
+}
+
+.xp-intro__title {
+  margin: 24px 0 16px;
+  font: 700 28px/1.17 var(--font-body);
+  /* The frame runs #2F6FED to #274889 — steeper than the site's own title
+     gradient, so it is written out here. */
+  background: linear-gradient(90deg, #2F6FED 0%, #274889 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.xp-intro__body {
+  margin: 0 auto 24px;
+  max-width: 34ch;
+  font: 400 16px/1.36 var(--font-body);
+  color: var(--xp-muted);
+}
+
+.xp-intro__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 32px;
+}
+
+/* the step's chrome ------------------------------------------------------ */
+
+.xp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 0 0;
+}
+
+.xp-back {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--xp-ink);
+  flex: none;
+}
+
+.xp-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Three segments, 3.58 tall with 10.74 between them, as measured. */
+.xp-steps {
+  display: flex;
+  gap: 10.74px;
+  flex: 1;
+  /* The frame leaves 65 to the right of the bar, so it stops short of the
+     edge rather than running the width of the screen. */
+  margin-right: 65px;
+  padding: 0;
+  list-style: none;
+}
+
+.xp-steps__seg {
+  flex: 1;
+  height: 3.58px;
+  border-radius: 4px;
+  background: var(--xp-track);
+}
+
+.xp-steps__seg.is-done {
+  background: var(--xp-blue);
+}
+
+/* questions and their controls ------------------------------------------- */
+
+.xp-form {
+  padding-top: 22px;
+}
+
+.xp-label {
+  display: block;
+  margin-bottom: 8px;
+  font: 500 14px/1.36 var(--font-body);
+  color: var(--xp-ink);
+}
+
+.xp-field {
+  margin-bottom: 16px;
+}
+
+.xp-field input[type="text"],
+.xp-field input[type="email"],
+.xp-field input[type="tel"],
+.xp-field input[type="url"],
+.xp-field input[type="number"],
+.xp-field input[type="file"],
+.xp-field textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 13px;
+  border: 1px solid var(--xp-rim);
+  border-radius: 8px;
+  background: var(--xp-field);
+  font: 400 14px/1.36 var(--font-body);
+  color: var(--xp-ink);
+}
+
+.xp-field textarea {
+  min-height: 163px;     /* "Tell us briefly about yourself?" */
+  resize: vertical;
+}
+
+.xp-field input:focus,
+.xp-field textarea:focus {
+  outline: none;
+  border-color: var(--xp-blue);
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, .16);
+}
+
+.xp-field.is-invalid input,
+.xp-field.is-invalid textarea {
+  border-color: var(--xp-danger);
+}
+
+/* An upload is a file input styled as the app's "Add file" chip. */
+.xp-upload input[type="file"] {
+  padding: 10px 13px;
+  border-style: dashed;
+  border-color: var(--xp-blue);
+  cursor: pointer;
+}
+
+.xp-upload input[type="file"]::file-selector-button {
+  margin-right: 11px;
+  padding: 7px 11px;
+  border: 1px solid var(--xp-blue);
+  border-radius: 8px;
+  background: var(--xp-field);
+  font: 500 13px/1 var(--font-body);
+  color: var(--xp-blue);
+  cursor: pointer;
+}
+
+.xp-hint {
+  margin: 6px 0 0;
+  font: 400 12px/1.4 var(--font-body);
+  color: var(--xp-muted);
+}
+
+/* choices ---------------------------------------------------------------- */
+
+.xp-group {
+  border: 0;
+  padding: 0;
+  margin: 0 0 45px;
+  min-width: 0;
+}
+
+.xp-options {
+  display: grid;
+  gap: 16px;
+}
+
+/* Outlined when chosen, never filled: the solid blue belongs to the button
+   at the foot of the form. */
+.xp-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid var(--xp-rim);
+  border-radius: 8px;
+  background: var(--c-pure, #FFF);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.xp-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.xp-option__label {
+  flex: 1;
+  font: 400 14px/1.36 var(--font-body);
+  color: var(--xp-ink);
+}
+
+.xp-option__tick {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--xp-blue);
+  color: #FFF;
+  opacity: 0;
+  transform: scale(.8);
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.xp-option__tick svg {
+  width: 12px;
+  height: 12px;
+}
+
+.xp-option:has(input:checked) {
+  border-color: var(--xp-blue);
+  border-width: 1.5px;
+}
+
+.xp-option:has(input:checked) .xp-option__tick {
+  opacity: 1;
+  transform: none;
+}
+
+.xp-option:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, .16);
+}
+
+/* The chosen state is drawn with :has(), which a browser from before 2023
+   does not understand -- and there the hidden checkbox would leave no way
+   to see what is selected. So in those, the checkbox itself comes back. */
+@supports not selector(:has(*)) {
+  .xp-option input {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--xp-blue);
+  }
+
+  .xp-option__tick {
+    display: none;
+  }
+}
+
+/* the declaration the website adds ---------------------------------------- */
+
+.xp-agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 24px 0 0;
+  font: 400 13px/1.45 var(--font-body);
+  color: var(--xp-muted);
+  cursor: pointer;
+}
+
+.xp-agree input {
+  margin-top: 2px;
+  accent-color: var(--xp-blue);
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.xp-error {
+  margin: 6px 0 0;
+  font: 400 12px/1.4 var(--font-body);
+  color: var(--xp-danger);
+}
+
+/* actions ----------------------------------------------------------------- */
+
+.xp-btn {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--xp-blue);
+  font: 600 16px/1.2 var(--font-body);
+  color: #FFF;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.xp-btn:hover {
+  filter: brightness(1.05);
+}
+
+.xp-btn--ghost {
+  margin-top: 16px;
+  background: transparent;
+  border: 1px solid var(--xp-blue);
+  color: var(--xp-blue);
+}
+
+/* The frames leave 45 between the last control and the button. */
+.xp-form__next {
+  margin-top: 45px;
+}
+
+/* submitted --------------------------------------------------------------- */
+
+.xp__col--done {
+  padding-top: 60px;
+}
+
+.xp-done {
+  display: grid;
+  justify-items: center;
+  padding: 72px 33px 48px;
+  border: 1px solid #999;
+  border-radius: 16px;
+  background: var(--c-pure, #FFF);
+  text-align: center;
+}
+
+.xp-done__tick {
+  display: grid;
+  place-items: center;
+  width: 91.5px;
+  height: 91.5px;
+  border-radius: 50%;
+  background: #2BB673;
+  color: #FFF;
+}
+
+.xp-done__tick svg {
+  width: 54px;
+  height: 54px;
+}
+
+.xp-done__title {
+  margin: 32px 0 16px;
+  font: 700 22px/1.3 var(--font-body);
+  color: var(--xp-ink);
+}
+
+.xp-done__body {
+  margin: 0;
+  max-width: 277px;
+  font: 400 14px/1.5 var(--font-body);
+  color: var(--xp-muted);
+}
+
+.xp-done__at {
+  margin: 24px 0 16px;
+  text-align: center;
+  font: 400 13px/1.5 var(--font-body);
+  color: var(--xp-muted);
+}
+
+/* The honeypot. Off-screen rather than display:none, which some submitters
+   check for, and never reachable by keyboard or screen reader. */
+.xp-trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+@media (max-width: 420px) {
+  .xp__col {
+    width: min(390px, 100% - 32px);
+  }
+
+  .xp-intro__title {
+    font-size: 24px;
+  }
+}

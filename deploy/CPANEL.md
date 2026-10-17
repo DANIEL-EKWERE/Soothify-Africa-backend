@@ -26,9 +26,16 @@ soothifyAfrica/celery.py          (harmless here; imported defensively)
 requirements.txt
 ```
 
-`settings.py` is not in git, so it goes up by hand. Check the copy on the
-server has **`DEBUG = False`** — it also turns on hashed static filenames,
-which is what stops browsers holding a week-old stylesheet.
+`settings.py` is not in git, so it goes up by hand, and the copy already on
+the server is the old site-only one — one installed app, no API. **Replace
+it**, do not merge into it; the passwords and the secret key in the new copy
+are the same ones.
+
+Debug mode is no longer a line to remember: `DEBUG` reads `DJANGO_DEBUG`
+from the environment, which cPanel does not set, so the server is always in
+production mode (hashed static filenames and all, which is what stops
+browsers holding a week-old stylesheet). Locally, `DJANGO_DEBUG=1 python
+manage.py runserver`.
 
 ## 2. Install the packages
 
@@ -40,14 +47,42 @@ pip install djangorestframework==3.15.2 \
             djangorestframework-simplejwt==5.3.1 \
             django-cors-headers==4.3.1 \
             django-filter==24.3 \
+            psycopg2-binary==2.9.10 \
             pillow \
             cryptography
 ```
 
-`cryptography` signs the ZEGOCLOUD call tokens. The other four are the API
-itself. Celery, boto3 and django-storages are **not** needed here.
+`psycopg2-binary` is the PostgreSQL driver (see step 3). `cryptography`
+signs the ZEGOCLOUD call tokens. The other four are the API itself. Celery,
+boto3 and django-storages are **not** needed here.
 
-## 3. Migrate and seed
+## 3. The database
+
+The site used to run on SQLite. The new settings point cPanel at the
+PostgreSQL database instead — `wdivczxg_soothifyAfrica-db`, through
+`wdivczxg_soothifyAfrica-user` on localhost. SQLite lets one writer in at a
+time, and the API now has a cron writing charges and reminders while people
+are mid-request; that is where "database is locked" comes from.
+
+Whatever is in the old `db.sqlite3` — the waitlist — goes across before you
+migrate, or it is left behind:
+
+```bash
+# with the OLD settings.py still in place, or DJANGO_DEBUG=1
+python manage.py dumpdata home --indent 2 > waitlist.json
+```
+
+Then, after the new `settings.py` is up and `migrate` has run:
+
+```bash
+python manage.py loaddata waitlist.json
+```
+
+Check in cPanel → **PostgreSQL Databases** that the user is actually granted
+on the database. A fresh cPanel database has no privileges until you add the
+user to it, and the error you get instead is a bare authentication failure.
+
+## 4. Migrate and seed
 
 ```bash
 python manage.py migrate
@@ -59,7 +94,40 @@ python manage.py show_webhook_urls   # what to paste where
 
 Then restart the app from the Setup Python App page.
 
-## 4. The nightly cron
+## 5. Push notifications (optional)
+
+The app registers its FCM token on every launch and the server files it;
+what sends the push is `notifications/push.py`, and it needs a key.
+
+Firebase console → **Project settings → Service accounts → Generate new
+private key**. Upload the JSON beside `settings.py` as
+`firebase-service-account.json`, then:
+
+```bash
+chmod 600 firebase-service-account.json
+pip install firebase-admin==6.6.0
+```
+
+Skip all of it and nothing breaks: every notification is still written to
+the in-app feed and shows the next time the app is opened. The only thing
+missing is the line the phone draws when the app is shut.
+
+**The key committed in `4f48680` must be rotated** before any of this —
+generate a new one and delete the old from the console's service-account
+page. It is in the repository's history, where deleting the file does not
+reach it.
+
+## 6. Keep the private uploads private
+
+Practising certificates and government IDs are stored under
+`media/private/`. Nothing serves that folder: files are read through signed,
+short-lived links that Django checks (`api/media.py`).
+
+If you ever add an alias so cPanel serves `media/` straight from disk, add a
+rule refusing `media/private/` in the same breath. A certificate reachable by
+URL is the one mistake on this host that cannot be taken back.
+
+## 7. The nightly cron
 
 cPanel → **Cron Jobs** → add one entry, once a day:
 
@@ -74,13 +142,21 @@ That one line covers everything the worker would do: releasing unpaid
 booking holds, reconciling subscriptions against Bachs, session reminders,
 and deleting recordings past their thirty days.
 
+It also carries the whole renewal cycle while memberships are sold one
+period at a time (`MEMBERSHIP_BILLING=one_off`). Bachs run no subscription
+here, so this cron is what charges the saved cards when a period ends,
+warns whoever has to pay by hand, and ends what nobody paid for.
+**Without it no membership ever renews and none ever lapses** — the library
+stays open to anyone who stopped paying, and nobody who meant to carry on
+is charged.
+
 Run it by hand once to see it work:
 
 ```bash
 python manage.py run_due_jobs
 ```
 
-## 5. Point the outside world at it
+## 8. Point the outside world at it
 
 `python manage.py show_webhook_urls` prints these, filled in:
 
@@ -94,7 +170,7 @@ Then, once `BACHS_SECRET_KEY` is in `settings.py`:
 python manage.py setup_bachs_products
 ```
 
-## 6. Check it
+## 9. Check it
 
 ```bash
 curl https://soothifyafrica.com.ng/api/v1/health/

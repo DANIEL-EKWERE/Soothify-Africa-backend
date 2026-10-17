@@ -18,7 +18,8 @@ def send_session_reminders():
     reminder switches default to off, and an unasked-for reminder about a
     therapy appointment is a privacy problem, not just a nuisance.
     """
-    from notifications.models import Notification, Preferences
+    from notifications.models import Preferences
+    from notifications.push import notify
 
     from .models import Session
 
@@ -35,8 +36,8 @@ def send_session_reminders():
         if not wants:
             continue
         discipline = session.get_discipline_display()
-        notification = Notification(
-            user=session.client,
+        notify(
+            session.client,
             kind='reminder',
             title='Reminder',
             body='You have {0} session today at {1}'.format(
@@ -44,9 +45,8 @@ def send_session_reminders():
             ),
             emphasis=discipline,
             target='session/{0}'.format(session.pk),
+            filters=['sessions'],
         )
-        notification.set_filters(['sessions'])
-        notification.save()
         sent += 1
 
     logger.info('session reminders: %s sent for %s', sent, today)

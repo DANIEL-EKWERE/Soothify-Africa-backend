@@ -9,6 +9,8 @@ either inactive, on trial, or active; it renews monthly or annually; and
 Billing History lists what was charged.
 """
 
+import hashlib
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -117,6 +119,42 @@ class Membership(models.Model):
     renews_at = models.DateTimeField(_('renews'), null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
+    # Whether the date above is a renewal or an ending.
+    #
+    # False while memberships are sold one period at a time -- see
+    # MEMBERSHIP_BILLING. The screens have to say which it is: "renews on the
+    # 9th" when it will take the money by itself, "ends on the 9th" when the
+    # member has to come back and pay. Getting that wrong is how someone
+    # loses access believing they were covered.
+    auto_renew = models.BooleanField(_('renews itself'), default=True)
+
+    # When the free week was taken, so it cannot be taken twice. Kept apart
+    # from `trial_ends_at`, which is cleared once the trial is over.
+    trial_started_at = models.DateTimeField(
+        _('trial started'), null=True, blank=True,
+    )
+
+    # When the free week was turned down because the card had already had
+    # one. Without this the offer would still be showing, and the next tap
+    # would take another hundred naira to reach the same answer.
+    #
+    # Cleared by hand if it was ever wrong -- a card signature is brand,
+    # last four and expiry, and two strangers can share all three.
+    trial_refused_at = models.DateTimeField(
+        _('free week refused'), null=True, blank=True,
+    )
+
+    # When we last tried to charge the saved card for a new period. Kept so
+    # the job does not try twice in a day, and so a charge that never comes
+    # back either way can be given up on.
+    charge_attempted_at = models.DateTimeField(
+        _('charge attempted'), null=True, blank=True,
+    )
+
+    # The last time we told them their membership was about to end, so a
+    # daily job does not tell them daily.
+    reminded_at = models.DateTimeField(_('last reminded'), null=True, blank=True)
+
     # Bachs' handles. No card detail reaches this server: Bachs holds the
     # saved method and runs the billing cycle, including the charge when a
     # trial ends. The brand and last four digits are only so the screen can
@@ -125,6 +163,29 @@ class Membership(models.Model):
     subscription_id = models.CharField(_('Bachs subscription'), max_length=80, blank=True)
     card_brand = models.CharField(_('card'), max_length=40, blank=True)
     card_last4 = models.CharField(_('last four'), max_length=4, blank=True)
+    card_exp_month = models.PositiveSmallIntegerField(
+        _('expires (month)'), null=True, blank=True,
+    )
+    card_exp_year = models.PositiveSmallIntegerField(
+        _('expires (year)'), null=True, blank=True,
+    )
+
+    # Their handle for the saved card. Scoped to their customer, so it says
+    # nothing about the same card in somebody else's hands.
+    payment_method_id = models.CharField(
+        _('Bachs payment method'), max_length=80, blank=True,
+    )
+
+    # What does say something: a hash of the brand, the last four digits and
+    # the expiry. It is how a second free week on the same card is spotted
+    # when it is asked for under a new email address, which is the whole
+    # reason a card is asked for at all.
+    #
+    # Hashed rather than kept in the open: it is a cross-account identifier,
+    # and nothing needs to read it back -- only to compare.
+    card_signature = models.CharField(
+        _('card signature'), max_length=64, blank=True, db_index=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -150,6 +211,39 @@ class Membership(models.Model):
         return False
 
     @property
+    def runs_itself(self):
+        """Whether Bachs runs this membership's billing cycle.
+
+        True only for a real subscription of theirs. Our own charging of a
+        saved card is not that: it is a job here, and it is allowed to fail.
+        """
+        return bool(self.subscription_id)
+
+    @property
+    def has_usable_card(self):
+        """Whether a card is on file that we are allowed to charge at all.
+
+        About the card, not about this membership's intentions: it is what
+        decides whether a period *can* renew itself, and so what
+        `auto_renew` is set from.
+        """
+        if self.runs_itself:
+            return False
+        if not (self.customer_id and self.payment_method_id):
+            return False
+        return bool(getattr(settings, 'MEMBERSHIP_AUTO_CHARGE', True))
+
+    @property
+    def can_be_charged(self):
+        """Whether we will in fact try the card when this period ends.
+
+        The card, plus the intention. They come apart after a charge the
+        bank would not take without its customer: the card is still on file
+        and still unusable, and the member is paying by hand from then on.
+        """
+        return self.has_usable_card and self.auto_renew
+
+    @property
     def card_label(self):
         if not self.card_last4:
             return ''
@@ -161,12 +255,108 @@ class Membership(models.Model):
             return 0
         return self.plan.price_naira
 
-    def start_trial(self, plan, cadence, trial_ends_at=None, subscription_id=''):
-        """Record a trial that Bachs has started.
+    @staticmethod
+    def signature_for(brand, last4, exp_month, exp_year):
+        """A stable, opaque name for one card.
 
-        `trial_ends_at` comes from the subscription they created. Falling
-        back to our own clock would eventually disagree with the date they
-        actually charge on, and the screen promises a date.
+        Bachs give no fingerprint of their own -- their saved-card id belongs
+        to one customer, so the same card under a second email reads as a
+        different card. Brand, last four and expiry are everything they do
+        give, so that is what this is made of.
+
+        It is a blunt instrument, and deliberately so: it is used to decline
+        a *free week*, never to decline a payment. Two strangers whose cards
+        agree on all four will find the second of them is offered the paid
+        plan instead, which is a disappointment and not a lockout.
+        """
+        if not last4:
+            return ''
+        raw = '{0}|{1}|{2}|{3}|{4}'.format(
+            (brand or '').strip().lower(), last4,
+            exp_month or '', exp_year or '', settings.SECRET_KEY,
+        )
+        return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
+    @classmethod
+    def trial_taken_on_card(cls, signature, exclude_user=None):
+        """Whether this card has already had its free week, on any account."""
+        if not signature:
+            return False
+        others = cls.objects.filter(
+            card_signature=signature, trial_started_at__isnull=False,
+        )
+        if exclude_user is not None:
+            others = others.exclude(user=exclude_user)
+        return others.exists()
+
+    def remember_card(self, brand, last4, exp_month=None, exp_year=None,
+                      payment_method_id='', customer_id=''):
+        """Record the card that was just proved, and what it is called."""
+        self.card_brand = (brand or '').title()
+        self.card_last4 = last4 or ''
+        self.card_exp_month = exp_month
+        self.card_exp_year = exp_year
+        self.card_signature = self.signature_for(brand, last4, exp_month, exp_year)
+        if payment_method_id:
+            self.payment_method_id = payment_method_id
+        if customer_id:
+            self.customer_id = customer_id
+        self.save(update_fields=[
+            'card_brand', 'card_last4', 'card_exp_month', 'card_exp_year',
+            'card_signature', 'payment_method_id', 'customer_id', 'updated_at',
+        ])
+
+    @property
+    def trial_used(self):
+        """Whether the free week is off the table for this account.
+
+        Taken, or refused because the card behind it had already had one.
+        Either way there is nothing left to offer, and offering it anyway
+        costs the person another card check to be told the same thing.
+        """
+        return self.trial_started_at is not None or self.trial_refused_at is not None
+
+    def grant_grace(self, hours):
+        """Keep access open a little longer after a charge we could not take.
+
+        Not generosity: the message we send says "tap to pay and keep your
+        membership", and cutting somebody off the same minute makes that a
+        lie. The window is what gives them time to do the thing we asked.
+
+        Granted once, because it follows a charge attempt and no further
+        attempt is made after one fails.
+        """
+        start = self.renews_at or timezone.now()
+        if start < timezone.now():
+            start = timezone.now()
+        self.renews_at = start + timezone.timedelta(hours=hours)
+        self.save(update_fields=['renews_at', 'updated_at'])
+
+    def stop_trying_the_card(self):
+        """Give up on charging this card; the member is asked instead.
+
+        Not a punishment and not an error: an off-session charge cannot ask
+        for an OTP, so the commonest card here simply cannot be charged
+        this way. What follows is the reminder, which was the only path
+        before any of this existed.
+        """
+        self.auto_renew = False
+        self.save(update_fields=['auto_renew', 'updated_at'])
+
+    def refuse_trial(self):
+        self.trial_refused_at = timezone.now()
+        self.save(update_fields=['trial_refused_at', 'updated_at'])
+
+    def start_trial(self, plan, cadence, trial_ends_at=None, subscription_id='',
+                    auto_renew=True):
+        """Begin the free week.
+
+        `trial_ends_at` comes from the subscription when Bachs is running
+        one: falling back to our own clock would eventually disagree with the
+        date they actually charge on, and the screen promises a date. Sold
+        one period at a time there is no subscription, so our clock is the
+        only clock, and `auto_renew` is False -- nothing will be charged when
+        the week ends.
         """
         self.plan = plan
         self.cadence = cadence
@@ -175,6 +365,9 @@ class Membership(models.Model):
             timezone.now() + timezone.timedelta(days=self.TRIAL_DAYS)
         )
         self.renews_at = self.trial_ends_at
+        self.trial_started_at = self.trial_started_at or timezone.now()
+        self.auto_renew = auto_renew
+        self.reminded_at = None
         if subscription_id:
             self.subscription_id = subscription_id
         self.cancelled_at = None
@@ -196,13 +389,36 @@ class Membership(models.Model):
         self.renews_at = until
         self.state = 'active'
         self.trial_ends_at = None
-        self.save(update_fields=['renews_at', 'state', 'trial_ends_at', 'updated_at'])
+        # A period that was paid for is a period to be reminded about again.
+        self.reminded_at = None
+        self.save(update_fields=[
+            'renews_at', 'state', 'trial_ends_at', 'reminded_at', 'updated_at',
+        ])
 
     def cancel(self):
-        """Stop renewing. Access runs to the end of what was paid for."""
+        """Stop renewing. Access runs to the end of what was paid for.
+
+        Also puts the saved card down: "cancel" means "do not charge me
+        again", and a cancelled membership still marked as renewing itself
+        would be charged by the job -- or, worse, never ended by it.
+        """
         self.state = 'cancelled'
         self.cancelled_at = timezone.now()
-        self.save(update_fields=['state', 'cancelled_at', 'updated_at'])
+        self.auto_renew = False
+        self.save(update_fields=[
+            'state', 'cancelled_at', 'auto_renew', 'updated_at',
+        ])
+
+    def lapse(self):
+        """The period ran out and nobody paid for another.
+
+        The plan and the dates stay as they were: Billing History and
+        "you were on the annual plan" both read from them, and the row is
+        the only record that this person was ever a member.
+        """
+        self.state = 'inactive'
+        self.trial_ends_at = None
+        self.save(update_fields=['state', 'trial_ends_at', 'updated_at'])
 
 
 class Payment(models.Model):
@@ -215,6 +431,9 @@ class Payment(models.Model):
     KINDS = (
         ('membership', _('Membership')),
         ('session', _('Session')),
+        # The small charge that proves a card before the free week, taken
+        # and given straight back. Never shown on Billing History.
+        ('card_check', _('Card check')),
     )
     STATUS = (
         ('pending', _('Pending')),
@@ -243,6 +462,10 @@ class Payment(models.Model):
     # Ours, sent to Bachs and echoed back on the webhook.
     reference = models.CharField(_('reference'), max_length=80, unique=True)
     checkout_id = models.CharField(_('Bachs checkout'), max_length=80, blank=True)
+
+    # Their id for the money itself, which is what a refund is asked for by.
+    charge_id = models.CharField(_('Bachs charge'), max_length=80, blank=True)
+    refund_id = models.CharField(_('Bachs refund'), max_length=80, blank=True)
     status = models.CharField(_('status'), max_length=20, choices=STATUS, default='pending')
     card_label = models.CharField(_('paid with'), max_length=60, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)

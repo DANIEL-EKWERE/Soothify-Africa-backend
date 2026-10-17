@@ -663,3 +663,117 @@ class PasswordResetTests(ApiTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), PasswordResetRequestView.ANSWER)
+
+
+class DeleteAccountTests(ApiTestCase):
+    """Closing an account.
+
+    What the app promises is that the profile, the saved classes and the
+    subscription are erased. What it must not do is take the business's
+    accounts with them, or a practitioner's record of their own working
+    day -- see accounts/deletion.py.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.profile = Profile.create_user(
+            email='ada@example.com', password='Soothify2026', full_name='Ada Obi',
+        )
+        self.user = self.profile.user
+        self.token = self.signed_in_as('ada@example.com', 'Soothify2026')
+        self.url = reverse('api:accounts:delete-account')
+
+    def delete_it(self, confirm='Soothify2026'):
+        return self.client.post(
+            self.url, {'confirm': confirm},
+            content_type='application/json', HTTP_AUTHORIZATION=self.token,
+        )
+
+    def test_what_they_wrote_is_gone(self):
+        from wellbeing.models import JournalEntry, MoodEntry
+
+        JournalEntry.objects.create(user=self.user, body='A hard week.')
+        MoodEntry.objects.create(user=self.user, score=0.2)
+
+        response = self.delete_it()
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(JournalEntry.objects.filter(user=self.user).exists())
+        self.assertFalse(MoodEntry.objects.filter(user=self.user).exists())
+
+    def test_the_account_is_closed_and_nameless(self):
+        self.delete_it()
+
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertFalse(self.user.has_usable_password())
+        self.assertNotIn('ada@example.com', self.user.email)
+        self.assertEqual(self.user.profile.full_name, '')
+
+    def test_they_cannot_sign_in_afterwards(self):
+        self.delete_it()
+
+        response = self.client.post(
+            reverse('api:accounts:login'),
+            {'email': 'ada@example.com', 'password': 'Soothify2026'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_the_wrong_password_deletes_nothing(self):
+        response = self.delete_it(confirm='not-my-password')
+
+        self.assertEqual(response.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+
+    def test_a_social_account_confirms_with_its_address(self):
+        self.user.set_unusable_password()
+        self.user.save(update_fields=['password'])
+
+        # There is no password to check, so the address is what proves it.
+        self.assertEqual(self.delete_it(confirm='wrong@example.com').status_code, 400)
+        self.assertEqual(self.delete_it(confirm='ada@example.com').status_code, 204)
+
+    def test_what_was_paid_is_kept(self):
+        from billing.models import Payment
+
+        Payment.objects.create(
+            user=self.user, kind='membership', amount_naira=150000,
+            reference='mem_keepme', status='paid',
+        )
+
+        self.delete_it()
+
+        # The business's accounts are not the member's to erase, and money
+        # that arrived has to keep saying where it came from.
+        payment = Payment.objects.get(reference='mem_keepme')
+        self.assertEqual(payment.user_id, self.user.pk)
+
+    def test_a_membership_stops_renewing(self):
+        from billing.models import Membership
+
+        Membership.objects.create(
+            user=self.user, state='active', auto_renew=True,
+            card_last4='4242', payment_method_id='pm_1',
+        )
+
+        self.delete_it()
+
+        membership = Membership.objects.get(user=self.user)
+        self.assertFalse(membership.auto_renew)
+        self.assertEqual(membership.state, 'inactive')
+        # And the card is not kept on an account nobody can reach.
+        self.assertEqual(membership.card_last4, '')
+        self.assertEqual(membership.payment_method_id, '')
+
+    def test_a_stranger_cannot_delete_anybody(self):
+        response = self.client.post(
+            self.url, {'confirm': 'Soothify2026'},
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)

@@ -28,6 +28,10 @@ urlpatterns = [
          name='password-reset-confirm'),
 
     path('me/', views.MeView.as_view(), name='me'),
+    # Closing an account and erasing what is personal. A POST, because
+    # the one irreversible action here should not be a verb away from
+    # an ordinary profile edit.
+    path('me/delete/', views.DeleteAccountView.as_view(), name='delete-account'),
 
     path('kyc/', views.KycView.as_view(), name='kyc'),
     path('kyc/complete/', views.KycCompleteView.as_view(), name='kyc-complete'),

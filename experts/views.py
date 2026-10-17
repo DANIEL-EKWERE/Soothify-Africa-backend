@@ -7,8 +7,10 @@ each view says which of the two it is for.
 """
 
 import datetime
+import logging
 
 from django.db import transaction
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -23,6 +25,8 @@ from api import jobs
 from api.permissions import IsPractitioner
 from recordings import models as recordings_models
 from recordings import tasks as recording_tasks
+
+from billing import bachs
 
 from . import calls, matching
 from .models import (
@@ -43,11 +47,14 @@ from .serializers import (
     EarningsSerializer,
     ExpertSerializer,
     PayoutMethodSerializer,
+    PayoutRequestSerializer,
     PayoutSerializer,
     RatingSerializer,
     SessionNoteSerializer,
     SessionSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 # How long an unpaid booking holds its slot. Long enough to finish paying,
 # short enough that an abandoned checkout does not block that hour all day.
@@ -356,15 +363,73 @@ class MyEarningsView(APIView):
         return Response(EarningsSerializer(earnings_for(_my_expert(request))).data)
 
 
-class MyPayoutsView(generics.ListAPIView):
+class MyPayoutsView(generics.ListCreateAPIView):
+    """Past payouts, and asking for the next one.
+
+    A request is recorded, not paid: it is created `pending` and a person
+    sends it (see the admin action on Payout). Money leaving the business on
+    the strength of an HTTP request nobody reviewed is how a bug becomes a
+    bank transfer.
+    """
+
     serializer_class = PayoutSerializer
     permission_classes = [IsAuthenticated, IsPractitioner]
 
     def get_queryset(self):
         return Payout.objects.filter(expert=_my_expert(self.request))
 
+    def create(self, request, *args, **kwargs):
+        form = PayoutRequestSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+        amount = form.validated_data['amount_naira']
+
+        expert = _my_expert(request)
+        method = PayoutMethod.objects.filter(
+            expert=expert, is_default=True,
+        ).first() or PayoutMethod.objects.filter(expert=expert).first()
+        if method is None:
+            return Response(
+                {'detail': 'Add the account you want to be paid into first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Counted from completed sessions less what has already gone out,
+        # and counted here rather than trusted from the request.
+        available = earnings_for(expert)['available']
+        pending = Payout.objects.filter(
+            expert=expert, status='pending',
+        ).aggregate(total=Sum('amount_naira'))['total'] or 0
+
+        if amount > available - pending:
+            return Response(
+                {
+                    'detail': 'That is more than your available balance.',
+                    'available_naira': max(available - pending, 0),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payout = Payout.objects.create(
+            expert=expert,
+            amount_naira=amount,
+            label='Withdrawal',
+            method=method,
+            status='pending',
+        )
+        return Response(
+            PayoutSerializer(payout).data, status=status.HTTP_201_CREATED,
+        )
+
 
 class MyPayoutMethodsView(generics.ListCreateAPIView):
+    """Where this practitioner is paid.
+
+    Adding one is a conversation with Bachs, not a form save: the account is
+    resolved (which is also how the name on it is confirmed) and turned into
+    a payout destination. Only the destination and the last four digits are
+    kept -- the number itself is never stored here.
+    """
+
     serializer_class = PayoutMethodSerializer
     permission_classes = [IsAuthenticated, IsPractitioner]
     pagination_class = None
@@ -372,11 +437,95 @@ class MyPayoutMethodsView(generics.ListCreateAPIView):
     def get_queryset(self):
         return PayoutMethod.objects.filter(expert=_my_expert(self.request))
 
-    def perform_create(self, serializer):
-        expert = _my_expert(self.request)
-        if serializer.validated_data.get('is_default', True):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        expert = _my_expert(request)
+        data = serializer.validated_data
+        number = (data.pop('account_number', '') or '').strip()
+        bank_code = (data.pop('bank_code', '') or '').strip()
+
+        account_name = data.get('account_name', '')
+        destination_id = ''
+
+        if data.get('kind', 'bank') == 'bank':
+            try:
+                resolved = bachs.resolve_account(number, bank_code)
+                # Their name on the account, not whatever was typed: a
+                # payout to a mistyped name is somebody else's money.
+                account_name = (
+                    resolved.get('account_name')
+                    or resolved.get('name')
+                    or account_name
+                )
+                destination = bachs.create_payout_destination(
+                    bank_code=bank_code, account_number=number,
+                )
+                destination_id = (
+                    destination.get('destination_id')
+                    or destination.get('id', '')
+                )
+            except bachs.BachsError as failure:
+                logger.warning('could not add a payout destination: %s', failure)
+                return Response(
+                    {'detail': str(failure)},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+        if data.get('is_default', True):
             PayoutMethod.objects.filter(expert=expert).update(is_default=False)
-        serializer.save(expert=expert)
+
+        method = PayoutMethod.objects.create(
+            expert=expert,
+            kind=data.get('kind', 'bank'),
+            bank_name=data.get('bank_name', ''),
+            account_name=account_name,
+            last4=number[-4:],
+            destination_id=destination_id,
+            is_default=data.get('is_default', True),
+        )
+        return Response(
+            PayoutMethodSerializer(method).data, status=status.HTTP_201_CREATED,
+        )
+
+
+class MyBanksView(APIView):
+    """The banks a payout account can be at.
+
+    Asked of Bachs rather than hardcoded -- a list of Nigerian banks goes
+    out of date, and their codes are what the resolve call expects. Cached,
+    because it is the same answer for everyone all day.
+    """
+
+    permission_classes = [IsAuthenticated, IsPractitioner]
+    CACHE_KEY = 'bachs:banks:NG'
+    CACHE_SECONDS = 60 * 60 * 12
+
+    def get(self, request):
+        from django.core.cache import cache
+
+        banks = cache.get(self.CACHE_KEY)
+        if banks is None:
+            try:
+                answer = bachs.list_banks('NG')
+            except bachs.BachsError as failure:
+                logger.warning('could not list banks: %s', failure)
+                return Response(
+                    {'detail': str(failure)},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            rows = answer if isinstance(answer, list) else answer.get('banks', [])
+            banks = [
+                {
+                    'code': row.get('code') or row.get('bank_code', ''),
+                    'name': row.get('name') or row.get('bank_name', ''),
+                }
+                for row in rows
+                if row.get('code') or row.get('bank_code')
+            ]
+            cache.set(self.CACHE_KEY, banks, self.CACHE_SECONDS)
+        return Response(banks)
 
 
 class SessionNoteView(APIView):
@@ -416,7 +565,14 @@ class ApplicationView(generics.ListCreateAPIView):
         return Application.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        application = serializer.save(user=self.request.user)
+        # The address comes from the account rather than the form: an
+        # application from the app is from whoever is signed in, and taking
+        # a typed address would let one account apply as somebody else.
+        application = serializer.save(
+            user=self.request.user,
+            source='app',
+            email=self.request.user.email,
+        )
         # Both documents are marked required in the form; an application
         # without them cannot be reviewed, so they are taken together with it.
         for kind in ('certification', 'identity'):
