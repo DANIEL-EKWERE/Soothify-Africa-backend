@@ -23,3 +23,12 @@ urlpatterns += i18n_patterns(
     path('', include('home.urls')),
     prefix_default_language=False,
 )
+
+# What a request that cannot be answered gets. Only used when DEBUG is off,
+# which is every deployment -- locally you still get the yellow page.
+# home/errors.py answers /api/ paths with JSON and everything else with a
+# page, so the app never has to parse HTML to find out what went wrong.
+handler400 = 'home.errors.bad_request'
+handler403 = 'home.errors.forbidden'
+handler404 = 'home.errors.not_found'
+handler500 = 'home.errors.server_error'

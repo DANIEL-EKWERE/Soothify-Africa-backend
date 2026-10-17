@@ -117,7 +117,41 @@ generate a new one and delete the old from the console's service-account
 page. It is in the repository's history, where deleting the file does not
 reach it.
 
-## 6. Keep the private uploads private
+## 6. Error pages
+
+400, 403, 404, 429 and 500 are Django's to serve, and it does, with no setup
+— the handlers are wired in `soothifyAfrica/urls.py`. A request under
+`/api/` gets JSON instead of a page, so the app never has to parse HTML to
+find out what went wrong.
+
+502, 503, 504 and 508 are different: by the time a visitor sees one, the
+Python app is not answering, so Django cannot apologise for itself.
+LiteSpeed has to serve those from disk. After `collectstatic`:
+
+```bash
+python manage.py make_error_pages
+```
+
+That writes `500.html`, `502.html`, `503.html`, `504.html` and `508.html`
+into an `errors/` folder beside the collected static files — inside the
+document root, so the web server can reach them. Then, in the document
+root's `.htaccess`:
+
+```apache
+ErrorDocument 500 /static/errors/500.html
+ErrorDocument 502 /static/errors/502.html
+ErrorDocument 503 /static/errors/503.html
+ErrorDocument 504 /static/errors/504.html
+ErrorDocument 508 /static/errors/508.html
+```
+
+508 is the one worth having: on cPanel it means the account hit its
+resource limit, which is the failure a growing site meets first.
+
+Re-run `make_error_pages` whenever you re-run `collectstatic` — the pages
+link to the stylesheet by its hashed name, and the old name stops existing.
+
+## 7. Keep the private uploads private
 
 Practising certificates and government IDs are stored under
 `media/private/`. Nothing serves that folder: files are read through signed,
@@ -127,7 +161,7 @@ If you ever add an alias so cPanel serves `media/` straight from disk, add a
 rule refusing `media/private/` in the same breath. A certificate reachable by
 URL is the one mistake on this host that cannot be taken back.
 
-## 7. The nightly cron
+## 8. The nightly cron
 
 cPanel → **Cron Jobs** → add one entry, once a day:
 
@@ -156,7 +190,7 @@ Run it by hand once to see it work:
 python manage.py run_due_jobs
 ```
 
-## 8. Point the outside world at it
+## 9. Point the outside world at it
 
 `python manage.py show_webhook_urls` prints these, filled in:
 
@@ -170,7 +204,7 @@ Then, once `BACHS_SECRET_KEY` is in `settings.py`:
 python manage.py setup_bachs_products
 ```
 
-## 9. Check it
+## 10. Check it
 
 ```bash
 curl https://soothifyafrica.com.ng/api/v1/health/

@@ -2961,3 +2961,85 @@ p {
     font-size: 24px;
   }
 }
+
+/* ===========================================================================
+   Error pages.
+
+   One layout for every status: the number, a line in the site's own voice,
+   two or three lines of explanation, and one way out. Measured from the 508
+   frame (desktop and mobile) -- everything else reuses it, so a visitor who
+   meets two of these in a week meets the same page twice.
+
+   The nav and the footer are the site's own. An error page is the one page
+   nobody designed a journey to, so the most useful thing it can do is look
+   like somewhere they have already been and carry the usual links.
+   --------------------------------------------------------------------------- */
+
+.oops {
+  --oops-ink: #0D0D0D;
+  --oops-muted: #4F5B62;
+  --oops-blue: #2F6FED;
+
+  /* The frame leaves a deep white field above and below. clamp() rather than
+     a breakpoint: the gap closes smoothly between the two drawn widths. */
+  padding: clamp(96px, 17vw, 260px) 24px clamp(110px, 16vw, 230px);
+  background: var(--c-pure, #FFF);
+  text-align: center;
+}
+
+.oops__code {
+  margin: 0;
+  font: 700 clamp(56px, 7.6vw, 110px)/1 var(--font-body);
+  letter-spacing: -.01em;
+  /* Flat black, not the site's title gradient: the number is information,
+     and a gradient would read as decoration on a page that is apologising. */
+  color: var(--oops-ink);
+}
+
+.oops__title {
+  margin: clamp(26px, 3.4vw, 48px) auto 0;
+  /* One line on a desktop, as the frame has it; the phone rule below pulls
+     it in to two. */
+  max-width: 620px;
+  font: 700 clamp(17px, 1.3vw, 18px)/1.35 var(--font-body);
+  color: var(--oops-ink);
+}
+
+.oops__body {
+  margin: clamp(30px, 3.6vw, 52px) auto 0;
+  /* Narrow enough that the frame's own line breaks come out: three lines on
+     a desktop, four on a phone. Wider and the last line is left an orphan. */
+  max-width: 500px;
+  font: 400 clamp(15px, 1.15vw, 16px)/1.55 var(--font-body);
+  color: var(--oops-muted);
+}
+
+/* One action, sized to its label rather than to the column: a full-width
+   button on an empty page reads as a form, and there is nothing to submit. */
+.oops__home {
+  display: inline-grid;
+  place-items: center;
+  margin-top: clamp(34px, 3.4vw, 48px);
+  min-height: 52px;
+  padding: 10px 28px;
+  border-radius: 8px;
+  background: var(--oops-blue);
+  font: 600 16px/1.2 var(--font-body);
+  color: #FFF;
+  text-decoration: none;
+}
+
+.oops__home:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 480px) {
+  .oops__title {
+    max-width: 20ch;
+  }
+
+  .oops__home {
+    /* The phone frame runs it nearly the width of the text column. */
+    min-width: 212px;
+  }
+}

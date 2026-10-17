@@ -1,0 +1,14 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% block title %}We Could Not Read That Request — Soothify Africa{% endblock %}
+{% block description %}Something in the request was malformed.{% endblock %}
+
+{% block code %}400{% endblock %}
+{% block heading %}{% translate "We Could Not Read That Request" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    Something in it was malformed, so we stopped rather than guess at what
+    you meant. Head back to the page you came from and try that again.
+  {% endblocktranslate %}
+{% endblock %}

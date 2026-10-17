@@ -1,0 +1,20 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% comment %}
+  Served by the web server, not by Django -- by the time a visitor sees
+  this, the Python app is not answering. It reaches the browser as a flat
+  file written by `manage.py make_error_pages`; see deploy/CPANEL.md.
+{% endcomment %}
+
+{% block title %}We Are Taking A Short Break — Soothify Africa{% endblock %}
+{% block description %}The site is briefly unavailable.{% endblock %}
+
+{% block code %}503{% endblock %}
+{% block heading %}{% translate "We Are Taking A Short Break" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    We are either doing a little maintenance or fixing something that
+    broke. Nothing is lost. Try again in a few minutes.
+  {% endblocktranslate %}
+{% endblock %}

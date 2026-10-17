@@ -1,0 +1,14 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% block title %}Easy Does It — Soothify Africa{% endblock %}
+{% block description %}Too many requests in too short a time.{% endblock %}
+
+{% block code %}429{% endblock %}
+{% block heading %}{% translate "Easy Does It" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    That is a lot of requests in a very short time. Take a breath with us,
+    give it a minute, and try again.
+  {% endblocktranslate %}
+{% endblock %}

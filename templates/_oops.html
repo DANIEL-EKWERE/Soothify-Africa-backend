@@ -1,0 +1,32 @@
+{% extends "home/base.html" %}
+{% load i18n %}
+
+{% comment %}
+  Every error page's body. Each status is then four strings -- the number,
+  the line, the explanation, the page title -- and nothing else, which is
+  what stops nine pages drifting into nine different apologies.
+
+  The nav and the footer come from home/base.html: somebody who has landed
+  here needs links more than anyone, and the footer is where they are.
+{% endcomment %}
+
+{% comment %}
+  The white header, with the wordmark in dark and the CTA in blue. Not
+  `closeable`: that swaps the button for a close X, and on an error page
+  "Join Waitlist" is the more useful of the two -- there is nothing here to
+  close back out of.
+{% endcomment %}
+{% block header %}
+  <header class="page-head page-head--light">{% include "home/_nav.html" with theme="light" %}</header>
+{% endblock %}
+
+{% block body %}
+<main class="oops">
+  <p class="oops__code">{% block code %}{% endblock %}</p>
+  <h1 class="oops__title">{% block heading %}{% endblock %}</h1>
+  <p class="oops__body">{% block explanation %}{% endblock %}</p>
+  <a class="oops__home" href="{% url 'home:landing' %}">
+    {% translate "Go back to homepage" %}
+  </a>
+</main>
+{% endblock %}

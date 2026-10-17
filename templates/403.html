@@ -1,0 +1,14 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% block title %}This One Is Not Yours To Open — Soothify Africa{% endblock %}
+{% block description %}This page is not open to you.{% endblock %}
+
+{% block code %}403{% endblock %}
+{% block heading %}{% translate "This One Is Not Yours To Open" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    Either you need to be signed in, or the page sat open long enough for
+    the form to expire. Going back and sending it again usually settles it.
+  {% endblocktranslate %}
+{% endblock %}

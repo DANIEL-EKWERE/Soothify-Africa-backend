@@ -1,0 +1,21 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% comment %}
+  Served by the web server, not by Django -- by the time a visitor sees
+  this, the Python app is not answering. It reaches the browser as a flat
+  file written by `manage.py make_error_pages`; see deploy/CPANEL.md.
+{% endcomment %}
+
+{% block title %}Too Many People Trying To Feel Better At Once — Soothify Africa{% endblock %}
+{% block description %}Our servers are under pressure right now.{% endblock %}
+
+{% block code %}508{% endblock %}
+{% block heading %}{% translate "Too Many People Trying To Feel Better At Once" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    Our servers are currently sweating under the pressure. Give us a quick
+    second to catch our breath and refresh the page. We promise it'll be
+    worth it.
+  {% endblocktranslate %}
+{% endblock %}

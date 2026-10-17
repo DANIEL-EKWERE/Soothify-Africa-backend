@@ -1,0 +1,20 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% comment %}
+  Served by the web server, not by Django -- by the time a visitor sees
+  this, the Python app is not answering. It reaches the browser as a flat
+  file written by `manage.py make_error_pages`; see deploy/CPANEL.md.
+{% endcomment %}
+
+{% block title %}That Took Longer Than It Should — Soothify Africa{% endblock %}
+{% block description %}The server did not answer in time.{% endblock %}
+
+{% block code %}504{% endblock %}
+{% block heading %}{% translate "That Took Longer Than It Should" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    Our server did not answer in time, so your browser stopped waiting.
+    Refresh and it usually comes straight back.
+  {% endblocktranslate %}
+{% endblock %}

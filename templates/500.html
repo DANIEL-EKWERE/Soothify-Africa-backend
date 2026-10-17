@@ -1,0 +1,14 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Something Went Wrong At Our End" %} — Soothify Africa{% endblock %}
+{% block description %}{% translate "An error on our side, already logged." %}{% endblock %}
+
+{% block code %}500{% endblock %}
+{% block heading %}{% translate "Something Went Wrong At Our End" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    This one is ours, not yours. It has been logged and we are already
+    looking at it. Give it a moment and try again.
+  {% endblocktranslate %}
+{% endblock %}

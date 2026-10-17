@@ -1,0 +1,14 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% block title %}This Page Has Wandered Off — Soothify Africa{% endblock %}
+{% block description %}There is nothing at this address.{% endblock %}
+
+{% block code %}404{% endblock %}
+{% block heading %}{% translate "This Page Has Wandered Off" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    The link may be old, or the address may have a typo in it. Nothing has
+    gone wrong on your side — let us get you back to somewhere useful.
+  {% endblocktranslate %}
+{% endblock %}

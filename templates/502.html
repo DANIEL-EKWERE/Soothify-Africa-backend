@@ -1,0 +1,20 @@
+{% extends "_oops.html" %}
+{% load i18n %}
+
+{% comment %}
+  Served by the web server, not by Django -- by the time a visitor sees
+  this, the Python app is not answering. It reaches the browser as a flat
+  file written by `manage.py make_error_pages`; see deploy/CPANEL.md.
+{% endcomment %}
+
+{% block title %}We Cannot Reach Our Own Server — Soothify Africa{% endblock %}
+{% block description %}The site is up but the part that answers is not.{% endblock %}
+
+{% block code %}502{% endblock %}
+{% block heading %}{% translate "We Cannot Reach Our Own Server" %}{% endblock %}
+{% block explanation %}
+  {% blocktranslate trimmed %}
+    The site is here, but the part of it that answers you is not picking
+    up. It is usually a passing thing — give it a moment and refresh.
+  {% endblocktranslate %}
+{% endblock %}
