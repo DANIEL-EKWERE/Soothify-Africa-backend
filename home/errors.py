@@ -48,13 +48,33 @@ def _html(content, status):
 
 
 def _page(request, status, template, context=None):
-    """The page, or the JSON for an API path."""
+    """The page, or the JSON for an API path.
+
+    If the page itself cannot be rendered -- a missing staticfiles manifest
+    is the usual way, since the designed pages ask for the stylesheet and
+    the logo by their hashed names -- it falls back to the bare page rather
+    than letting the exception turn a 404 into a 500. The status the visitor
+    gets should be the one that actually happened.
+    """
     if wants_json(request):
         return JsonResponse({'detail': MESSAGES[status]}, status=status)
 
-    return _html(
-        loader.render_to_string(template, context or {}, request=request),
-        status,
+    try:
+        page = loader.render_to_string(template, context or {}, request=request)
+    except Exception:
+        logger.exception('the %s page could not be rendered', status)
+        page = _bare(status)
+
+    return _html(page, status)
+
+
+def _bare(status):
+    """The apology that reaches for nothing, with the right number on it."""
+    page = loader.render_to_string(BARE_500)
+    if status == 500:
+        return page
+    return page.replace('>500<', '>{0}<'.format(status)).replace(
+        'Something Went Wrong At Our End', str(MESSAGES[status]),
     )
 
 
@@ -88,6 +108,6 @@ def server_error(request, template_name='500.html'):
         page = loader.render_to_string(template_name, request=request)
     except Exception:
         logger.exception('the 500 page could not be rendered; serving the bare one')
-        page = loader.render_to_string(BARE_500)
+        page = _bare(500)
 
     return _html(page, 500)

@@ -194,3 +194,37 @@ class StaticErrorPageTests(SimpleTestCase):
             ):
                 with self.assertRaisesMessage(ValueError, 'something else'):
                     call_command('make_error_pages', out=out, verbosity=0)
+
+
+class WhenThePageItselfIsBrokenTests(SimpleTestCase):
+    """A 404 whose template fails must still be a 404.
+
+    This is not hypothetical: the designed pages ask for the stylesheet and
+    the logo by their hashed names, so a deployment that has not run
+    collectstatic raises inside the 404 template -- and without a fallback
+    that turns every missing page on the site into a 500.
+    """
+
+    def request(self, path='/gone/'):
+        from django.test import RequestFactory
+
+        return RequestFactory().get(path)
+
+    def test_the_status_survives_a_broken_template(self):
+        broken = ValueError("Missing staticfiles manifest entry for 'img/x.jpg'")
+        real = loader.render_to_string
+
+        def fail_the_designed_one(template, *args, **kwargs):
+            if template == '404.html':
+                raise broken
+            return real(template, *args, **kwargs)
+
+        with mock.patch.object(loader, 'render_to_string', fail_the_designed_one):
+            response = errors.not_found(self.request())
+
+        page = response.content.decode()
+        self.assertEqual(response.status_code, 404)
+        self.assertIn('>404<', page)
+        # And it says 404, not "Something went wrong at our end".
+        self.assertNotIn('Something Went Wrong At Our End', page)
+        self.assertIn('<style>', page)
