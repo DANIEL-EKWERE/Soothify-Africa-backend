@@ -19,6 +19,11 @@ from .settings import *  # noqa: F401,F403
 
 DEBUG = True
 
+# Anything, because a phone on the same wifi reaches this server at the
+# laptop's LAN address and that changes with the network. settings.py's own
+# list stays strict; this file is never used in production.
+ALLOWED_HOSTS = ["*"]
+
 # The hardening block in settings.py only runs when DEBUG is off, but these are
 # set explicitly in case this file is imported over a configuration that has
 # already applied them.

@@ -36,6 +36,7 @@ from .models import (
     ExpertProfile,
     Payout,
     PayoutMethod,
+    Recommendation,
     Session,
     SessionNote,
     earnings_for,
@@ -50,6 +51,8 @@ from .serializers import (
     PayoutRequestSerializer,
     PayoutSerializer,
     RatingSerializer,
+    RecommendationCreateSerializer,
+    RecommendationSerializer,
     SessionNoteSerializer,
     SessionSerializer,
 )
@@ -551,6 +554,92 @@ class SessionNoteView(APIView):
             session=session, defaults={'body': serializer.validated_data['body']},
         )
         return Response(SessionNoteSerializer(note).data)
+
+
+class MyRecommendationsView(generics.ListCreateAPIView):
+    """What this practitioner has pointed their clients at, and leaving one.
+
+    The write side of the Journal's second tab. A recommendation names a
+    published MediaItem and a client the practitioner has actually had a
+    session with -- both checked in the serializer, because an endpoint
+    that writes into another person's Journal is one worth being strict
+    about.
+    """
+
+    permission_classes = [IsAuthenticated, IsPractitioner]
+    pagination_class = None
+
+    def get_serializer_class(self):
+        return (
+            RecommendationCreateSerializer
+            if self.request.method == 'POST'
+            else RecommendationSerializer
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['expert'] = _my_expert(self.request)
+        return context
+
+    def get_queryset(self):
+        return Recommendation.objects.filter(
+            expert=_my_expert(self.request),
+        ).select_related('item', 'item__category', 'expert', 'expert__profile', 'session')
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        made = serializer.save()
+        # Told, not left to be discovered: the client is not in the app when
+        # this is written, and a recommendation nobody reads is a session's
+        # work wasted.
+        _tell_them_about(made)
+        return Response(
+            RecommendationSerializer(made, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+def _tell_them_about(recommendation):
+    from notifications.push import notify
+
+    notify(
+        recommendation.client,
+        kind='recommendation',
+        title='{0} recommended something'.format(
+            recommendation.expert.display_name,
+        ),
+        body=recommendation.item.title,
+        target='journal',
+        filters=['whats_new'],
+    )
+
+
+class MyRecommendationListView(generics.ListAPIView):
+    """The client's own: the Journal's second tab."""
+
+    serializer_class = RecommendationSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return Recommendation.objects.filter(
+            client=self.request.user,
+            # An item pulled from the library stops being offered rather
+            # than becoming a card that opens nothing.
+            item__is_published=True,
+        ).select_related('item', 'item__category', 'expert', 'expert__profile', 'session')
+
+
+class RecommendationReadView(APIView):
+    """Opening one clears its "New" pill, and the count on the tab."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        row = get_object_or_404(Recommendation, pk=pk, client=request.user)
+        row.mark_read()
+        return Response(RecommendationSerializer(row, context={'request': request}).data)
 
 
 class ApplicationView(generics.ListCreateAPIView):

@@ -563,3 +563,73 @@ def _next_friday(now):
     """Payouts run weekly on a Friday, which is what the design prints."""
     ahead = (4 - now.weekday()) % 7 or 7
     return now + timezone.timedelta(days=ahead)
+
+
+class Recommendation(models.Model):
+    """A piece of the library a practitioner pointed their client at.
+
+    Left during a call or written up with the session notes afterwards, and
+    read in the client's Journal under its second tab.
+
+    Deliberately not a SessionNote. That is the practitioner's own clinical
+    record and is never served to the client; this is the opposite -- it is
+    written *for* them, and it is the only thing from a session they see.
+
+    It carries a MediaItem rather than a title somebody typed, so the card
+    opens something when it is tapped. A recommendation whose item is later
+    unpublished stops being offered rather than becoming a dead link.
+    """
+
+    expert = models.ForeignKey(
+        ExpertProfile, on_delete=models.CASCADE, related_name='recommendations',
+        verbose_name=_('from'),
+    )
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='recommendations', verbose_name=_('for'),
+    )
+    #: The session it came out of, where there was one. Null for something
+    #: sent between sessions, which the app allows.
+    session = models.ForeignKey(
+        Session, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='recommendations',
+    )
+    item = models.ForeignKey(
+        'content.MediaItem', on_delete=models.CASCADE,
+        related_name='recommendations', verbose_name=_('content'),
+    )
+    note = models.TextField(_("expert's note"), blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    #: When the client opened it. Null is the red "New" pill on the card and
+    #: the count on the tab.
+    read_at = models.DateTimeField(_('read'), null=True, blank=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+        verbose_name = _('recommendation')
+        verbose_name_plural = _('recommendations')
+        indexes = [models.Index(fields=['client', '-created_at'])]
+
+    def __str__(self):
+        return '{0} -> {1}'.format(self.expert, self.item)
+
+    @property
+    def is_new(self):
+        return self.read_at is None
+
+    def mark_read(self):
+        if self.read_at is None:
+            self.read_at = timezone.now()
+            self.save(update_fields=['read_at'])
+
+    @property
+    def session_label(self):
+        """"Therapy 1-on-1 Therapy" -- the service, then the format.
+
+        Built here rather than in the app so the two cannot word it
+        differently, and empty when it came between sessions.
+        """
+        if self.session_id is None:
+            return ''
+        return self.session.get_discipline_display()

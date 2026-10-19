@@ -12,6 +12,7 @@ from .models import (
     ExpertProfile,
     Payout,
     PayoutMethod,
+    Recommendation,
     Session,
     SessionNote,
 )
@@ -169,3 +170,24 @@ class SessionNoteAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(Recommendation)
+class RecommendationAdmin(admin.ModelAdmin):
+    """What practitioners have pointed clients at.
+
+    Read-only on the author and the recipient: who recommended what to whom
+    is a record of a session, not a field to correct afterwards.
+    """
+
+    list_display = ('item', 'expert', 'client', 'is_new', 'created_at')
+    list_filter = ('created_at', 'read_at')
+    search_fields = (
+        'item__title', 'client__email', 'expert__profile__full_name', 'note',
+    )
+    autocomplete_fields = ('item', 'client', 'session')
+    readonly_fields = ('created_at', 'read_at')
+
+    @admin.display(boolean=True, description='unread')
+    def is_new(self, obj):
+        return obj.is_new

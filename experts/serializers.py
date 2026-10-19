@@ -13,6 +13,7 @@ from .models import (
     ExpertProfile,
     Payout,
     PayoutMethod,
+    Recommendation,
     Session,
     SessionLanguage,
     SessionNote,
@@ -248,3 +249,85 @@ class EarningsSerializer(serializers.Serializer):
     total_sessions = serializers.IntegerField()
     next_payout = serializers.DateField()
     payout_method = serializers.CharField(allow_blank=True)
+
+
+class RecommendationSerializer(serializers.ModelSerializer):
+    """One card in the client's Journal, and the screen behind it.
+
+    Carries the whole piece of content rather than its id: the card draws
+    the cover, the title and the kind, and a second request per card to
+    fetch each would make a list of ten into eleven round trips.
+    """
+
+    expert_name = serializers.CharField(source='expert.display_name', read_only=True)
+    expert_avatar_url = serializers.SerializerMethodField()
+    session_label = serializers.CharField(read_only=True)
+    is_new = serializers.BooleanField(read_only=True)
+    content = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recommendation
+        fields = (
+            'id', 'expert_name', 'expert_avatar_url', 'session_label',
+            'note', 'content', 'is_new', 'created_at', 'read_at',
+        )
+
+    def get_expert_avatar_url(self, obj):
+        avatar = obj.expert.profile.avatar
+        return signed_url(avatar.name, self.context.get('request')) if avatar else ''
+
+    def get_content(self, obj):
+        from content.serializers import MediaItemSerializer
+
+        return MediaItemSerializer(obj.item, context=self.context).data
+
+
+class RecommendationCreateSerializer(serializers.Serializer):
+    """What a practitioner sends to leave one."""
+
+    client = serializers.IntegerField()
+    item = serializers.IntegerField()
+    note = serializers.CharField(required=False, allow_blank=True, default='')
+    session = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate(self, data):
+        from content.models import MediaItem
+
+        expert = self.context['expert']
+
+        item = MediaItem.objects.live().filter(pk=data['item']).first()
+        if item is None:
+            # Unpublished as well as missing: pointing somebody at something
+            # they cannot open is worse than not recommending it.
+            raise serializers.ValidationError(
+                {'item': ['No published content with that id.']},
+            )
+
+        # Only somebody they have actually seen. Without this an expert
+        # could write into any account by guessing a number.
+        seen = Session.objects.filter(expert=expert, client_id=data['client'])
+        if not seen.exists():
+            raise serializers.ValidationError(
+                {'client': ['You have no session with that client.']},
+            )
+
+        session = None
+        if data.get('session'):
+            session = seen.filter(pk=data['session']).first()
+            if session is None:
+                raise serializers.ValidationError(
+                    {'session': ['That is not one of your sessions with them.']},
+                )
+
+        data['item'] = item
+        data['session'] = session
+        return data
+
+    def create(self, validated):
+        return Recommendation.objects.create(
+            expert=self.context['expert'],
+            client_id=validated['client'],
+            item=validated['item'],
+            session=validated['session'],
+            note=validated.get('note', ''),
+        )

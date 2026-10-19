@@ -23,6 +23,14 @@ urlpatterns = [
          name='my-payout-methods'),
     # The banks a payout account can be at, asked of Bachs.
     path('experts/me/banks/', views.MyBanksView.as_view(), name='my-banks'),
+    path('experts/me/recommendations/', views.MyRecommendationsView.as_view(),
+         name='my-recommendations'),
+
+    # The client's side of the same thing: the Journal's second tab.
+    path('recommendations/', views.MyRecommendationListView.as_view(),
+         name='recommendations'),
+    path('recommendations/<int:pk>/read/', views.RecommendationReadView.as_view(),
+         name='recommendation-read'),
 
     path('experts/<int:pk>/', views.ExpertDetailView.as_view(), name='detail'),
     path('experts/<int:pk>/slots/', views.ExpertSlotsView.as_view(), name='slots'),
