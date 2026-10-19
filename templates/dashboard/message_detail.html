@@ -1,0 +1,63 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ row.title }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>{{ row.title }}</h1>
+    <p>{{ row.get_channel_display }} · {{ row.get_audience_display }}{% if row.is_marketing %} · promotional{% endif %}</p>
+  </div>
+  <a class="btn btn--quiet" href="{% url 'dashboard:messages' %}">Back</a>
+</div>
+
+<section class="panel">
+  <div class="panel__head"><h2>As they will read it</h2></div>
+  <div class="panel__body">
+    {% for paragraph in paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+  </div>
+</section>
+
+{% if row.can_be_sent %}
+  <section class="panel">
+    <div class="panel__head"><h2>Before you send</h2></div>
+    <div class="panel__body">
+      {% comment %}
+        The count is the same query the send will run, worked out now rather
+        than written down when the draft was saved — the audience can grow
+        between the two.
+      {% endcomment %}
+      <p>This goes to <strong>{{ reach }}</strong> {% if reach == 1 %}person{% else %}people{% endif %}.</p>
+      {% if reach == 0 %}
+        <p class="field__hint">Nobody matches that audience, so there is nothing to send.</p>
+      {% else %}
+        <p class="field__hint">A sent message cannot be unsent.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if reach %}
+    <form method="post" action="{% url 'dashboard:message-send' row.pk %}">
+      {% csrf_token %}
+      <div class="actions">
+        <button class="btn" type="submit">Send to {{ reach }} {% if reach == 1 %}person{% else %}people{% endif %}</button>
+      </div>
+    </form>
+  {% endif %}
+{% else %}
+  <section class="panel">
+    <div class="panel__head"><h2>What happened</h2></div>
+    <div class="panel__body">
+      <p>
+        {% if row.state == "sending" %}Going out now.
+        {% else %}
+          Sent {{ row.sent_at|date:"j M Y, H:i" }} to {{ row.recipients }}
+          {% if row.recipients == 1 %}person{% else %}people{% endif %}:
+          <strong>{{ row.delivered }}</strong> delivered{% if row.failed %},
+          <strong>{{ row.failed }}</strong> failed{% endif %}.
+        {% endif %}
+      </p>
+      {% if row.detail %}<p class="field__hint">{{ row.detail }}</p>{% endif %}
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

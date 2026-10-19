@@ -27,6 +27,11 @@ urlpatterns = [
     path('applications/<int:pk>/decide/', views.application_decide,
          name='application-decide'),
 
+    path('messages/', views.messages_list, name='messages'),
+    path('messages/new/', views.message_new, name='message-new'),
+    path('messages/<int:pk>/', views.message_detail, name='message-detail'),
+    path('messages/<int:pk>/send/', views.message_send, name='message-send'),
+
     path('sessions/', views.sessions, name='sessions'),
     path('recordings/', views.recordings, name='recordings'),
     path('people/', views.people, name='people'),

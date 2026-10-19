@@ -1,0 +1,48 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Messages{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Messages</h1>
+    <p>{{ total }} sent or drafted</p>
+  </div>
+  <a class="btn" href="{% url 'dashboard:message-new' %}">Write a message</a>
+</div>
+
+<section class="panel">
+  <div class="panel__body panel__body--flush">
+    <table class="table">
+      <thead>
+        <tr><th>Message</th><th>To</th><th>By</th><th>Reached</th><th>When</th></tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <a class="table__main" href="{% url 'dashboard:message-detail' row.pk %}">{{ row.title }}</a>
+            <span class="table__sub">{{ row.get_channel_display }}{% if row.is_marketing %} · promotional{% endif %}</span>
+          </td>
+          <td><span class="table__sub">{{ row.get_audience_display }}</span></td>
+          <td><span class="table__sub">{{ row.created_by.email|default:"—" }}</span></td>
+          <td>
+            {% if row.state == "sent" %}
+              <span class="pill pill--brand">{{ row.delivered }}</span>
+              {% if row.failed %}<span class="pill">{{ row.failed }} failed</span>{% endif %}
+            {% elif row.state == "draft" %}<span class="pill">Not sent</span>
+            {% elif row.state == "sending" %}<span class="pill">Going out</span>
+            {% else %}<span class="pill">Failed</span>{% endif %}
+          </td>
+          <td><span class="table__sub">{{ row.sent_at|date:"j M Y, H:i"|default:"—" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="table__empty">
+          <strong>Nothing sent yet</strong>
+          <a href="{% url 'dashboard:message-new' %}">Write the first one</a>
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

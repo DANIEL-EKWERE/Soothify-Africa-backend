@@ -23,7 +23,7 @@
   <div class="panel__body panel__body--flush">
     <table class="table">
       <thead>
-        <tr><th>Person</th><th>Role</th><th>Language</th><th>Joined</th></tr>
+        <tr><th>Person</th><th>Role</th><th>Language</th><th>Joined</th><th></th></tr>
       </thead>
       <tbody>
       {% for row in rows %}
@@ -39,9 +39,15 @@
           </td>
           <td>{{ row.profile.get_language_display|default:"—" }}</td>
           <td><span class="table__sub">{{ row.date_joined|date:"j M Y" }}</span></td>
+          <td>
+            {% if row.email %}
+              <a class="btn btn--quiet btn--small"
+                 href="{% url 'dashboard:message-new' %}?to={{ row.email|urlencode }}">Message</a>
+            {% endif %}
+          </td>
         </tr>
       {% empty %}
-        <tr><td colspan="4" class="table__empty">
+        <tr><td colspan="5" class="table__empty">
           <strong>{% if q %}Nothing matches "{{ q }}"{% else %}No accounts yet{% endif %}</strong>
           {% if q %}<a href="/dashboard/people/">Clear the search</a>{% endif %}
         </td></tr>

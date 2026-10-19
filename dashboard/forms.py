@@ -101,3 +101,95 @@ class CategoryForm(forms.ModelForm):
         model = Category
         fields = ('id', 'name', 'description', 'cover', 'position', 'is_active')
         labels = {'id': _('Short id (used by the app)')}
+
+
+class BroadcastForm(forms.ModelForm):
+    """Write one message to send out.
+
+    The people field takes addresses rather than a multi-select: a select
+    box listing every account is unusable at four accounts and unreadable at
+    four thousand, and the thing staff actually have to hand is somebody's
+    email.
+    """
+
+    addresses = forms.CharField(
+        label=_('Send to these addresses'),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 3,
+            'placeholder': 'ada@example.com, bola@example.com',
+        }),
+        help_text=_('One per line, or separated by commas. Only used when '
+                    'the audience is "the people picked below".'),
+    )
+
+    class Meta:
+        from notifications.models import Broadcast
+
+        model = Broadcast
+        fields = ('title', 'body', 'channel', 'audience', 'is_marketing')
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'placeholder': _('Something we think you will like'),
+            }),
+            'body': forms.Textarea(attrs={
+                'rows': 10,
+                'placeholder': _('Leave a blank line between paragraphs.'),
+            }),
+        }
+        labels = {
+            'title': _('Subject (and the push title)'),
+            'body': _('Message'),
+        }
+        help_texts = {
+            'body': _('Plain text. A blank line starts a new paragraph, and '
+                      'nothing here is read as HTML.'),
+        }
+
+    def clean(self):
+        from notifications.models import Broadcast
+
+        cleaned = super().clean()
+        audience = cleaned.get('audience')
+        channel = cleaned.get('channel')
+
+        if audience == Broadcast.Audience.WAITLIST and channel != Broadcast.Channel.EMAIL:
+            # They have no account, so there is no feed to file a row in and
+            # no phone registered to push to.
+            raise forms.ValidationError({
+                'channel': _('Waitlist signups have no account, so they can '
+                             'only be emailed.'),
+            })
+
+        if audience == Broadcast.Audience.CHOSEN:
+            self.chosen = self._resolve(cleaned.get('addresses') or '')
+        else:
+            self.chosen = []
+        return cleaned
+
+    def _resolve(self, raw):
+        """Turn the typed addresses into accounts, saying which are unknown."""
+        from django.contrib.auth import get_user_model
+
+        wanted = [
+            part.strip().lower()
+            for part in raw.replace(',', '\n').splitlines()
+            if part.strip()
+        ]
+        if not wanted:
+            raise forms.ValidationError({
+                'addresses': _('Give at least one address, or pick a different '
+                               'audience.'),
+            })
+
+        found = list(get_user_model().objects.filter(email__in=wanted))
+        missing = sorted(set(wanted) - {u.email.lower() for u in found})
+        if missing:
+            # Named rather than counted: "3 unknown" leaves staff to find
+            # which three, and the usual cause is a typo in one of them.
+            raise forms.ValidationError({
+                'addresses': _('No account for: %(list)s') % {
+                    'list': ', '.join(missing),
+                },
+            })
+        return found

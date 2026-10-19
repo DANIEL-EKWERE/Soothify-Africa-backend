@@ -19,6 +19,12 @@ from experts.forms import MAX_UPLOAD_BYTES
 from experts.models import Application, ApplicationDocument
 
 
+#: What the site's header and footer put on a page. Used to assert the
+#: application flow carries none of it -- see the test at the foot of this
+#: file, which first checks an ordinary page does.
+CHROME = ('page-head', 'class="nav', '<footer', 'Join Waitlist')
+
+
 def a_file(name='licence.pdf', content=b'%PDF-1.4 test', content_type='application/pdf'):
     return SimpleUploadedFile(name, content, content_type=content_type)
 
@@ -308,3 +314,36 @@ class PractitionerApplicationTests(TestCase):
         # files the system holds, and they are served to staff through a
         # signed link rather than by path.
         self.assertTrue(document.file.name.startswith('private/'))
+
+    # ------------------------------------------------- the app's own chrome
+
+    def test_no_page_in_the_flow_carries_the_site_s_header_or_footer(self):
+        # The app's screens have neither, and this is meant to be the same
+        # flow -- a nav bar and a marketing footer around it would make the
+        # website's version a different thing asking the same questions.
+        self.client.post(self.step(1), self.one())
+        self.client.post(self.step(2), self.two())
+
+        # Asserted against a page that does carry them, so this cannot pass
+        # by looking for markers that were never in the HTML.
+        ordinary = self.client.get(reverse('home:privacy')).content.decode()
+        for marker in CHROME:
+            self.assertIn(marker, ordinary, marker)
+
+        pages = [self.intro, self.step(1), self.step(2), self.step(3)]
+        for url in pages:
+            page = self.client.get(url).content.decode()
+            for marker in CHROME:
+                with self.subTest(url=url, marker=marker):
+                    self.assertNotIn(marker, page)
+
+    def test_the_only_way_back_is_the_flow_s_own(self):
+        # Removing the header removes the site nav with it, so each screen
+        # has to carry its own Back -- the app's does.
+        intro = self.client.get(self.intro).content.decode()
+        self.assertIn(reverse('home:landing'), intro)
+
+        self.client.post(self.step(1), self.one())
+        second = self.client.get(self.step(2)).content.decode()
+        self.assertIn('xp-back', second)
+        self.assertIn(self.step(1), second)

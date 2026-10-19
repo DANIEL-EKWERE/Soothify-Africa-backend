@@ -1,0 +1,10 @@
+{{ title }}
+
+{% for paragraph in paragraphs %}{{ paragraph }}
+
+{% endfor %}With so much calm,
+Soothify
+{{ site_url }}
+
+Written to you because you have a Soothify account. Reply to this email or
+write to {{ support_email }} if you would rather not hear from us.

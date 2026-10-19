@@ -412,3 +412,96 @@ def application_decide(request, pk):
         application.reject(reviewer=request.user, notes=notes)
 
     return redirect('dashboard:application-detail', pk=application.pk)
+
+
+# ------------------------------------------------------------- messages out
+
+@staff_only
+def messages_list(request):
+    """What has been sent, and the way to send something new."""
+    from notifications.models import Broadcast
+
+    rows = Broadcast.objects.select_related('created_by').all()
+    return render(request, 'dashboard/messages.html', {
+        'page': 'messages',
+        'rows': rows[:PAGE_SIZE * 2],
+        'total': rows.count(),
+    })
+
+
+@staff_only
+def message_new(request):
+    """Write one. Saved as a draft; sending is the next page.
+
+    Two steps on purpose. A message to four thousand people cannot be
+    unsent, so the form never sends -- it saves, and the detail page shows
+    the audience, the count and the wording before anything goes out.
+    """
+    from .forms import BroadcastForm
+
+    from notifications.admin import PICKED
+    from notifications.models import Broadcast
+
+    # Arrived from the People page's "Message" link, or from ticking
+    # accounts in the admin and choosing the action there.
+    picked = request.GET.get('to') or ', '.join(request.session.get(PICKED, []))
+    prefill = {}
+    if picked:
+        prefill = {'audience': Broadcast.Audience.CHOSEN, 'addresses': picked}
+
+    form = BroadcastForm(request.POST or None, initial=prefill)
+    if request.method == 'POST' and form.is_valid():
+        broadcast = form.save(commit=False)
+        broadcast.created_by = request.user
+        broadcast.save()
+        if form.chosen:
+            broadcast.people.set(form.chosen)
+        # Used once. Left behind, it would pre-fill the next message too.
+        request.session.pop(PICKED, None)
+        return redirect('dashboard:message-detail', pk=broadcast.pk)
+
+    return render(request, 'dashboard/message_form.html', {
+        'page': 'messages',
+        'form': form,
+    })
+
+
+@staff_only
+def message_detail(request, pk):
+    """The message, who it reaches, and the button that sends it."""
+    from notifications import broadcast as sending
+    from notifications.models import Broadcast
+
+    row = get_object_or_404(Broadcast, pk=pk)
+    reach = sending.count_for(row) if row.can_be_sent else row.recipients
+
+    return render(request, 'dashboard/message_detail.html', {
+        'page': 'messages',
+        'row': row,
+        'reach': reach,
+        'paragraphs': [p.strip() for p in row.body.split('\n\n') if p.strip()],
+    })
+
+
+@staff_only
+@require_POST
+def message_send(request, pk):
+    """Send it, once.
+
+    The state is moved to "going out" here, in the request, before the work
+    is handed off -- so a second press, or a double-submitted form, finds a
+    row that is no longer a draft and does nothing.
+    """
+    from notifications import broadcast as sending
+    from notifications.models import Broadcast
+
+    row = get_object_or_404(Broadcast, pk=pk)
+    if not row.can_be_sent:
+        return redirect('dashboard:message-detail', pk=pk)
+
+    row.recipients = sending.count_for(row)
+    row.state = Broadcast.State.SENDING
+    row.save(update_fields=['recipients', 'state'])
+
+    jobs.run(sending.send_broadcast, row.pk)
+    return redirect('dashboard:message-detail', pk=pk)

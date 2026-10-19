@@ -14,6 +14,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import interests
 from .models import Category, MediaItem, MediaRating, PlaybackEvent, Shelf
 from .serializers import (
     CategorySerializer,
@@ -88,19 +89,62 @@ class FeaturedView(generics.ListAPIView):
 class RecommendationsView(generics.ListAPIView):
     """The full "Recommended for you" page -- a longer, separate list.
 
-    Takes an optional ?mood= (the app's MoodLevel key). Mood-aware picking is
-    not built yet, so the parameter is accepted and recorded in the response
-    rather than silently ignored: the app already sends it.
+    Personalised from the onboarding questionnaire, and open to anyone. That
+    combination is the point: the questionnaire is answered before there is
+    an account, so the answers arrive with the request rather than being
+    looked up by user. See content/interests.py for the mapping.
+
+    Three ways it decides, in order:
+
+      POST with {"concerns": [...], "goals": [...]}  the device's own
+          answers, which is what an anonymous visitor sends.
+      GET while signed in                            their saved answers.
+      anything else                                  the staff-picked list.
+
+    A POST because "depression" in a query string ends up in access logs,
+    proxy caches and the CDN cache key. It reads, and it writes nothing.
+
+    ?mood= is still accepted and still echoed: mood-aware picking is not
+    built, and the app already sends it.
     """
 
     serializer_class = MediaItemSerializer
     permission_classes = [AllowAny]
     pagination_class = None
 
+    def post(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
     def get_queryset(self):
-        return MediaItem.objects.live().filter(is_recommended=True).select_related(
-            'category', 'practitioner',
-        )
+        picked = MediaItem.objects.live().select_related('category', 'practitioner')
+
+        keys = interests.categories_for(self._answers())
+        if keys:
+            matched = picked.filter(category_id__in=keys)
+            if matched.exists():
+                # Ordered so the strongest signal leads, which a plain
+                # `filter` would not do -- it answers in the table's order,
+                # not the one the questionnaire implied.
+                return sorted(
+                    matched, key=lambda item: keys.index(item.category_id),
+                )
+
+        # Nothing to go on, or nothing in the library that answers it. The
+        # staff-picked list is the fallback, never an empty screen.
+        return picked.filter(is_recommended=True)
+
+    def _answers(self):
+        """What the questionnaire holds, from the body or from the account."""
+        sent = self.request.data if self.request.method == 'POST' else None
+        if isinstance(sent, dict) and (sent.get('concerns') or sent.get('goals')):
+            return sent
+
+        user = self.request.user
+        if user.is_authenticated:
+            kyc = getattr(user, 'kyc', None)
+            if kyc is not None:
+                return kyc.answers or {}
+        return {}
 
 
 class ShelfView(APIView):

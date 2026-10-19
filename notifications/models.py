@@ -144,3 +144,98 @@ class PushDevice(models.Model):
 
     def __str__(self):
         return '{0} on {1}'.format(self.user.get_username(), self.platform)
+
+
+class Broadcast(models.Model):
+    """A message the team sends out, and the record of having sent it.
+
+    One row per send, kept afterwards: "did we already tell everyone about
+    the maintenance window" is a question somebody asks at the worst
+    possible moment, and a sent message that leaves no trace cannot answer
+    it. It also carries the counts, so a send that half-worked says so.
+
+    Deliberately not a draft editor. A broadcast is written, checked and
+    sent; what it is not is a thing to be edited after people have read it.
+    """
+
+    class Channel(models.TextChoices):
+        PUSH = 'push', _('Push and the in-app feed')
+        EMAIL = 'email', _('Email')
+        BOTH = 'both', _('Both')
+
+    class Audience(models.TextChoices):
+        EVERYONE = 'everyone', _('Everyone with an account')
+        MEMBERS = 'members', _('People on a membership')
+        LAPSED = 'lapsed', _('People whose membership has ended')
+        PRACTITIONERS = 'practitioners', _('Practitioners')
+        WAITLIST = 'waitlist', _('Waitlist signups (email only)')
+        CHOSEN = 'chosen', _('The people picked below')
+
+    class State(models.TextChoices):
+        DRAFT = 'draft', _('Not sent yet')
+        SENDING = 'sending', _('Going out')
+        SENT = 'sent', _('Sent')
+        FAILED = 'failed', _('Failed')
+
+    channel = models.CharField(
+        _('send by'), max_length=10, choices=Channel.choices, default=Channel.BOTH,
+    )
+    audience = models.CharField(
+        _('to'), max_length=20, choices=Audience.choices, default=Audience.CHOSEN,
+    )
+    people = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='broadcasts',
+        verbose_name=_('chosen people'),
+        help_text=_('Only used when the audience is "the people picked below".'),
+    )
+
+    # One subject line serves both: the push title and the email subject. Two
+    # fields would be two things to keep saying the same.
+    title = models.CharField(_('subject'), max_length=160)
+    body = models.TextField(_('message'))
+
+    #: Promotional rather than operational. Marketing goes only to people who
+    #: turned offers on; "your session starts in an hour" goes to everybody,
+    #: because it is about something they asked for.
+    is_marketing = models.BooleanField(
+        _('promotional'), default=False,
+        help_text=_('Promotional messages are sent only to people who turned '
+                    'on offers in their notification settings.'),
+    )
+
+    state = models.CharField(
+        _('state'), max_length=10, choices=State.choices, default=State.DRAFT,
+    )
+    recipients = models.PositiveIntegerField(_('addressed to'), default=0)
+    delivered = models.PositiveIntegerField(_('delivered'), default=0)
+    failed = models.PositiveIntegerField(_('failed'), default=0)
+    detail = models.TextField(_('what happened'), blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='broadcasts_sent', verbose_name=_('written by'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(_('sent'), null=True, blank=True)
+
+    class Meta:
+        ordering = ('-created_at',)
+        verbose_name = _('broadcast')
+        verbose_name_plural = _('broadcasts')
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def goes_by_push(self):
+        return self.channel in (self.Channel.PUSH, self.Channel.BOTH)
+
+    @property
+    def goes_by_email(self):
+        return self.channel in (self.Channel.EMAIL, self.Channel.BOTH)
+
+    @property
+    def can_be_sent(self):
+        # Sending twice is the one mistake there is no undoing, so a row
+        # leaves the draft state once and never comes back.
+        return self.state == self.State.DRAFT

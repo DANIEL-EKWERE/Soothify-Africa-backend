@@ -1,0 +1,43 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Write a message{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <h1>Write a message</h1>
+    <p>Saved as a draft. Nothing goes out until you send it from the next page.</p>
+  </div>
+  <a class="btn btn--quiet" href="{% url 'dashboard:messages' %}">Back</a>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="panel panel--warn"><div class="panel__body">
+      {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div></div>
+  {% endif %}
+
+  <section class="panel">
+    <div class="panel__head"><h2>What it says</h2></div>
+    <div class="panel__body">
+      {% include "dashboard/_field.html" with field=form.title %}
+      {% include "dashboard/_field.html" with field=form.body %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head"><h2>Who gets it, and how</h2></div>
+    <div class="panel__body">
+      {% include "dashboard/_field.html" with field=form.channel %}
+      {% include "dashboard/_field.html" with field=form.audience %}
+      {% include "dashboard/_field.html" with field=form.addresses %}
+      {% include "dashboard/_field.html" with field=form.is_marketing %}
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn" type="submit">Save and check it</button>
+  </div>
+</form>
+{% endblock %}

@@ -2585,6 +2585,14 @@ p {
   margin-inline: auto;
 }
 
+/* The steps start at the progress bar, so the page's own top padding comes
+   off: the app leaves 22 above that row and nothing else, measured from the
+   safe area. Keeping both gave 46 here -- a gap with nothing in it, read as
+   the form starting late. */
+.xp--steps {
+  padding-top: 0;
+}
+
 /* intro ------------------------------------------------------------------ */
 
 .xp__col--intro {
@@ -2592,7 +2600,9 @@ p {
 }
 
 .xp-intro__title {
-  margin: 24px 0 16px;
+  /* 71 above the title in the app's own screen, which has no header over
+     it; neither does this page now. */
+  margin: 47px 0 16px;
   font: 700 28px/1.17 var(--font-body);
   /* The frame runs #2F6FED to #274889 — steeper than the site's own title
      gradient, so it is written out here. */
@@ -2616,7 +2626,8 @@ p {
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 8px;
-  margin-bottom: 32px;
+  /* 48 between the artwork and Start Application, as the frame has it. */
+  margin-bottom: 48px;
 }
 
 /* the step's chrome ------------------------------------------------------ */

@@ -26,6 +26,8 @@ PAGES = (
     '/dashboard/recordings/',
     '/dashboard/people/',
     '/dashboard/applications/',
+    '/dashboard/messages/',
+    '/dashboard/messages/new/',
 )
 
 
@@ -402,3 +404,118 @@ class ApplicationReviewTests(StaffTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/dashboard/login/', response['Location'])
         self.assertFalse(ExpertProfile.objects.exists())
+
+
+class MessageTests(StaffTestCase):
+    """Writing and sending a broadcast from the dashboard."""
+
+    def setUp(self):
+        super().setUp()
+        self.ada = Profile.create_user(
+            email='ada@example.com', password='Soothify2026', full_name='Ada Obi',
+        ).user
+
+    def written(self, **overrides):
+        payload = {
+            'title': 'The library is open',
+            'body': 'First line.\n\nSecond line.',
+            'channel': 'both',
+            'audience': 'chosen',
+            'addresses': 'ada@example.com',
+        }
+        payload.update(overrides)
+        return {k: v for k, v in payload.items() if v is not None}
+
+    # ------------------------------------------------------------ writing
+
+    def test_writing_one_saves_a_draft_and_sends_nothing(self):
+        from django.core import mail
+
+        from notifications.models import Broadcast
+
+        response = self.client.post('/dashboard/messages/new/', self.written())
+
+        row = Broadcast.objects.get()
+        self.assertRedirects(response, '/dashboard/messages/{0}/'.format(row.pk))
+        self.assertEqual(row.state, 'draft')
+        self.assertEqual(row.created_by, self.staff)
+        self.assertEqual(list(row.people.all()), [self.ada])
+        self.assertEqual(mail.outbox, [])
+
+    def test_an_unknown_address_is_named_not_counted(self):
+        from notifications.models import Broadcast
+
+        response = self.client.post('/dashboard/messages/new/', self.written(
+            addresses='ada@example.com, nobody@example.com',
+        ))
+
+        self.assertContains(response, 'nobody@example.com')
+        self.assertFalse(Broadcast.objects.exists())
+
+    def test_the_waitlist_cannot_be_pushed_to(self):
+        from notifications.models import Broadcast
+
+        response = self.client.post('/dashboard/messages/new/', self.written(
+            audience='waitlist', channel='both', addresses=None,
+        ))
+
+        self.assertContains(response, 'only be emailed')
+        self.assertFalse(Broadcast.objects.exists())
+
+    def test_the_people_page_offers_a_way_in(self):
+        page = self.client.get('/dashboard/people/').content.decode()
+
+        self.assertIn('/dashboard/messages/new/?to=ada%40example.com', page)
+
+    # ------------------------------------------------------------ sending
+
+    def draft(self):
+        self.client.post('/dashboard/messages/new/', self.written())
+        from notifications.models import Broadcast
+
+        return Broadcast.objects.get()
+
+    def test_the_page_says_who_it_reaches_before_it_goes(self):
+        row = self.draft()
+
+        page = self.client.get('/dashboard/messages/{0}/'.format(row.pk))
+
+        self.assertEqual(page.context['reach'], 1)
+        self.assertContains(page, 'cannot be unsent')
+
+    def test_sending_it_sends_it(self):
+        from django.core import mail
+
+        from notifications.models import Notification
+
+        row = self.draft()
+
+        self.client.post('/dashboard/messages/{0}/send/'.format(row.pk))
+
+        row.refresh_from_db()
+        self.assertEqual(row.state, 'sent')
+        self.assertEqual(row.delivered, 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['ada@example.com'])
+        self.assertTrue(Notification.objects.filter(user=self.ada).exists())
+
+    def test_it_cannot_be_sent_twice(self):
+        from django.core import mail
+
+        row = self.draft()
+        url = '/dashboard/messages/{0}/send/'.format(row.pk)
+
+        self.client.post(url)
+        self.client.post(url)
+
+        # The one mistake there is no undoing.
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_get_cannot_send_it(self):
+        from django.core import mail
+
+        row = self.draft()
+
+        self.client.get('/dashboard/messages/{0}/send/'.format(row.pk))
+
+        self.assertEqual(mail.outbox, [])

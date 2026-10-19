@@ -4,9 +4,16 @@
 {% block title %}{% translate "Join the Soothify Expert Network" %} — Soothify Africa{% endblock %}
 {% block description %}{% translate "Therapists, yoga teachers and Pilates instructors: apply to take sessions on Soothify Africa. We read every application within 24 to 48 hours." %}{% endblock %}
 
-{% block header %}
-  <header class="page-head page-head--light">{% include "home/_nav.html" with theme="light" closeable=True %}</header>
-{% endblock %}
+{% comment %}
+  No site header and no footer, here or on the steps that follow. The app's
+  screen has neither, and this flow is meant to be the same one: a nav bar
+  and a marketing footer wrapped around it would make the website's version
+  a different thing that happens to ask the same questions.
+
+  What replaces the header is the flow's own Back, which the steps already
+  carry and which this screen has as its second button.
+{% endcomment %}
+{% block header %}{% endblock %}
 
 {% comment %}
   The app's own first screen — Figma `259:59132`. Same title, same blurb,
@@ -34,4 +41,4 @@
 </main>
 {% endblock %}
 
-{% block footer %}{% include "home/_footer.html" with cta=False %}{% endblock %}
+{% block footer %}{% endblock %}
