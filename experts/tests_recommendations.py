@@ -215,3 +215,52 @@ class RecommendationTests(ApiTestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['content']['title'], 'Guided Breathing for calm')
+
+
+class BySessionTests(RecommendationTests):
+    """The call screen names the session, never the client.
+
+    Reading the client off the booking is what lets the practitioner's app
+    recommend something mid-call without ever handling an account id.
+    """
+
+    def test_naming_the_session_is_enough(self):
+        response = self.client.post(
+            MINE,
+            {'item': self.item.pk, 'session': self.session.pk},
+            content_type='application/json',
+            HTTP_AUTHORIZATION=self.expert_token,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        row = Recommendation.objects.get()
+        self.assertEqual(row.client, self.ada)
+        self.assertEqual(row.session, self.session)
+
+    def test_somebody_else_s_session_is_refused(self):
+        other = make_expert('yogi@example.com', 'Yoga Only', disciplines=('yoga',))
+        theirs = Session.objects.create(
+            expert=other, client=self.ada, discipline='yoga',
+            starts_at=timezone.now(),
+            ends_at=timezone.now() + datetime.timedelta(minutes=50),
+            status='completed',
+        )
+
+        response = self.client.post(
+            MINE,
+            {'item': self.item.pk, 'session': theirs.pk},
+            content_type='application/json',
+            HTTP_AUTHORIZATION=self.expert_token,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Recommendation.objects.exists())
+
+    def test_neither_a_session_nor_a_client_is_refused(self):
+        response = self.client.post(
+            MINE, {'item': self.item.pk},
+            content_type='application/json',
+            HTTP_AUTHORIZATION=self.expert_token,
+        )
+
+        self.assertEqual(response.status_code, 400)

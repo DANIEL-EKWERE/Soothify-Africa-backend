@@ -283,12 +283,18 @@ class RecommendationSerializer(serializers.ModelSerializer):
 
 
 class RecommendationCreateSerializer(serializers.Serializer):
-    """What a practitioner sends to leave one."""
+    """What a practitioner sends to leave one.
 
-    client = serializers.IntegerField()
+    Either a `session` or a `client`. From the call screen it is the
+    session, and the client is read off it -- so no account id travels and
+    "have I actually seen this person" is answered by the booking itself
+    rather than by a second check that could disagree with it.
+    """
+
     item = serializers.IntegerField()
-    note = serializers.CharField(required=False, allow_blank=True, default='')
     session = serializers.IntegerField(required=False, allow_null=True)
+    client = serializers.IntegerField(required=False, allow_null=True)
+    note = serializers.CharField(required=False, allow_blank=True, default='')
 
     def validate(self, data):
         from content.models import MediaItem
@@ -302,25 +308,34 @@ class RecommendationCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {'item': ['No published content with that id.']},
             )
+        data['item'] = item
+
+        if data.get('session'):
+            session = Session.objects.filter(
+                pk=data['session'], expert=expert,
+            ).first()
+            if session is None:
+                raise serializers.ValidationError(
+                    {'session': ['That is not one of your sessions.']},
+                )
+            data['session'] = session
+            data['client'] = session.client_id
+            return data
+
+        data['session'] = None
+        if not data.get('client'):
+            raise serializers.ValidationError(
+                {'session': ['Name a session, or the client it is for.']},
+            )
 
         # Only somebody they have actually seen. Without this an expert
         # could write into any account by guessing a number.
-        seen = Session.objects.filter(expert=expert, client_id=data['client'])
-        if not seen.exists():
+        if not Session.objects.filter(
+            expert=expert, client_id=data['client'],
+        ).exists():
             raise serializers.ValidationError(
                 {'client': ['You have no session with that client.']},
             )
-
-        session = None
-        if data.get('session'):
-            session = seen.filter(pk=data['session']).first()
-            if session is None:
-                raise serializers.ValidationError(
-                    {'session': ['That is not one of your sessions with them.']},
-                )
-
-        data['item'] = item
-        data['session'] = session
         return data
 
     def create(self, validated):
