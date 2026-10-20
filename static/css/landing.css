@@ -2963,6 +2963,155 @@ p {
   overflow: hidden;
 }
 
+/* ---------------------------------------------------------------- desktop
+   The app is a 390 phone frame and this flow was built from it, which left
+   a laptop showing a phone-wide ribbon down the middle of an empty page.
+
+   What widens is the layout only. Every measurement the frames specify --
+   48-tall controls, the 8 radius, 8 under a question, 16 between controls,
+   45 before the button -- is the same at every width; a desktop reading of
+   a mobile design is not a licence to redraw it.
+   --------------------------------------------------------------------- */
+
+/* A tablet is not a phone: the column grows before the form splits. */
+@media (min-width: 600px) {
+  .xp__col {
+    width: min(560px, 100% - 64px);
+  }
+
+  /* The bar can run the width of the column now; 65 of right margin was
+     the phone frame's own inset. */
+  .xp-steps {
+    margin-right: 0;
+  }
+}
+
+@media (min-width: 900px) {
+  .xp {
+    padding-bottom: 96px;
+  }
+
+  .xp__col {
+    width: min(880px, 100% - 96px);
+  }
+
+  /* Two questions abreast. Anything that cannot share a line says so
+     below rather than being squeezed into half of one. */
+  .xp-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+    align-items: start;
+  }
+
+  .xp-group,
+  .xp-agree,
+  .xp-form__next,
+  .xp-form > .xp-error {
+    grid-column: 1 / -1;
+  }
+
+  /* "Tell us briefly about yourself?" is 163 tall; half a line beside a
+     48 input would leave a hole next to it. */
+  .xp-field:has(textarea) {
+    grid-column: 1 / -1;
+  }
+
+  /* Before :has(), the textarea's own field cannot be singled out, so the
+     whole form stays one column rather than putting a 163-tall box beside
+     a 48-tall one. */
+  @supports not selector(:has(*)) {
+    .xp-form {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* The three disciplines and the two languages read as a row of cards
+     rather than a stack a laptop has to scroll. */
+  .xp-options {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  /* A button the width of 880 is a banner, not a control. The frame's
+     52 height stays; only the width is held in. */
+  .xp-form__next {
+    width: min(320px, 100%);
+  }
+
+  /* The intro becomes what the artwork always wanted: the words on one
+     side, the picture on the other.
+     
+     Centred in the window rather than sitting at the top: with no header
+     over it and nothing below, a short page anchored to the top leaves
+     two thirds of a laptop screen empty under it. */
+  .xp--intro {
+    display: grid;
+    align-content: center;
+    /* Fills the window and centres in it. With no header above and no
+       footer below, a short page pinned to the top leaves most of a
+       laptop screen blank under it. */
+    min-height: 100vh;
+    padding-block: 48px;
+  }
+
+  .xp__col--intro {
+    display: grid;
+    /* The words over the actions in one column, the artwork beside both. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    grid-template-areas:
+      'words art'
+      'actions art';
+    grid-template-rows: max-content max-content;
+    column-gap: 56px;
+    align-content: center;
+    text-align: left;
+  }
+
+  .xp-intro__words {
+    grid-area: words;
+  }
+
+  .xp-intro__actions {
+    grid-area: actions;
+    /* Held to the top of its row so the buttons keep the frame's 52 rather
+       than stretching to whatever the artwork beside them comes to. */
+    align-self: start;
+    width: min(320px, 100%);
+  }
+
+  .xp-intro__art {
+    grid-area: art;
+    align-self: center;
+    justify-self: end;
+    /* Held to about what the words and the two buttons come to. A square
+       at its full 346 is taller than the column beside it, and grid hands
+       the difference to the rows it spans -- which opens a gap between the
+       blurb and the first button rather than making the picture bigger. */
+    max-height: 300px;
+    width: auto;
+    aspect-ratio: 1;
+  }
+
+  .xp-intro__title {
+    margin-top: 0;
+    font-size: 40px;
+    line-height: 1.1;
+  }
+
+  .xp-intro__body {
+    /* The frame leaves 24 under the blurb; with the artwork beside it
+       rather than below, that 24 is what separates it from the button. */
+    margin: 0 0 24px;
+    max-width: 40ch;
+  }
+
+  /* The acknowledgement is one card; it is given room, not a column. */
+  .xp__col--done {
+    width: min(560px, 100% - 96px);
+    padding-top: 80px;
+  }
+}
+
 @media (max-width: 420px) {
   .xp__col {
     width: min(390px, 100% - 32px);

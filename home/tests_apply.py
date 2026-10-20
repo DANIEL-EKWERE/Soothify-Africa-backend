@@ -347,3 +347,19 @@ class PractitionerApplicationTests(TestCase):
         second = self.client.get(self.step(2)).content.decode()
         self.assertIn('xp-back', second)
         self.assertIn(self.step(1), second)
+
+    def test_the_intro_groups_its_three_parts(self):
+        # The words, the artwork and the two actions are grouped so a wide
+        # screen can put the words and the actions in one column with the
+        # artwork beside them -- without reordering what a phone shows.
+        page = self.client.get(self.intro).content.decode()
+
+        for part in ('xp-intro__words', 'xp-intro__art', 'xp-intro__actions'):
+            self.assertIn(part, page, part)
+
+        # In the frame's own order, which is what a phone renders.
+        words = page.index('xp-intro__words')
+        art = page.index('xp-intro__art')
+        actions = page.index('xp-intro__actions')
+        self.assertLess(words, art)
+        self.assertLess(art, actions)
